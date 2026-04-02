@@ -1,0 +1,610 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="default">
+  <meta name="apple-mobile-web-app-title" content="領収書">
+  <meta name="theme-color" content="#007aff">
+  <link rel="manifest" href="./manifest.json">
+  <link rel="apple-touch-icon" href="./icon.svg">
+  <title>領収書作成アプリ</title>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Hiragino Sans', sans-serif;
+      background: #f2f2f7;
+      color: #1c1c1e;
+      min-height: 100vh;
+    }
+    .nav {
+      background: #fff;
+      border-bottom: 1px solid #e5e5ea;
+      padding: 12px 16px;
+      padding-top: calc(12px + env(safe-area-inset-top));
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      position: sticky;
+      top: 0;
+      z-index: 100;
+    }
+    .nav-title { font-size: 17px; font-weight: 600; }
+    .nav-btn {
+      background: none; border: none; cursor: pointer;
+      font-size: 15px; color: #007aff; padding: 4px 8px;
+      min-width: 60px;
+    }
+    .nav-btn-right { text-align: right; }
+    .screen { display: none; }
+    .screen.active { display: block; }
+    .tabbar {
+      position: fixed; bottom: 0; left: 0; right: 0;
+      background: rgba(255,255,255,0.95);
+      backdrop-filter: blur(10px);
+      border-top: 1px solid #e5e5ea;
+      display: flex;
+      padding-bottom: env(safe-area-inset-bottom);
+    }
+    .tab-btn {
+      flex: 1; background: none; border: none; cursor: pointer;
+      padding: 8px 4px 4px;
+      display: flex; flex-direction: column; align-items: center; gap: 2px;
+      color: #8e8e93; font-size: 10px;
+    }
+    .tab-btn.active { color: #007aff; }
+    .tab-icon { font-size: 22px; }
+    .content {
+      padding: 16px;
+      padding-bottom: calc(80px + env(safe-area-inset-bottom));
+    }
+    .card {
+      background: #fff;
+      border-radius: 12px;
+      overflow: hidden;
+      margin-bottom: 16px;
+      box-shadow: 0 1px 3px rgba(0,0,0,0.08);
+    }
+    .receipt-item {
+      padding: 14px 16px;
+      border-bottom: 1px solid #f2f2f7;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      cursor: pointer;
+    }
+    .receipt-item:last-child { border-bottom: none; }
+    .receipt-item:active { background: #f2f2f7; }
+    .receipt-item-left { flex: 1; }
+    .receipt-item-title { font-size: 16px; font-weight: 500; margin-bottom: 3px; }
+    .receipt-item-sub { font-size: 13px; color: #8e8e93; }
+    .receipt-item-amount { font-size: 16px; font-weight: 600; }
+    .empty-state {
+      text-align: center; padding: 60px 20px; color: #8e8e93;
+    }
+    .empty-icon { font-size: 48px; margin-bottom: 12px; }
+    .empty-text { font-size: 15px; line-height: 1.6; }
+    .fab {
+      position: fixed;
+      bottom: calc(70px + env(safe-area-inset-bottom) + 16px);
+      right: 20px;
+      width: 56px; height: 56px;
+      background: #007aff;
+      color: #fff;
+      border: none;
+      border-radius: 28px;
+      font-size: 28px;
+      cursor: pointer;
+      box-shadow: 0 4px 12px rgba(0,122,255,0.4);
+      display: flex; align-items: center; justify-content: center;
+      line-height: 1;
+    }
+    .form-section { margin-bottom: 20px; }
+    .form-section-title {
+      font-size: 13px; color: #6d6d72;
+      font-weight: 600; text-transform: uppercase;
+      letter-spacing: 0.5px;
+      margin-bottom: 8px; padding: 0 4px;
+    }
+    .form-group {
+      background: #fff;
+      border-radius: 12px;
+      overflow: hidden;
+      box-shadow: 0 1px 3px rgba(0,0,0,0.08);
+    }
+    .form-row {
+      display: flex;
+      align-items: center;
+      padding: 12px 16px;
+      border-bottom: 1px solid #f2f2f7;
+      gap: 12px;
+      min-height: 48px;
+    }
+    .form-row:last-child { border-bottom: none; }
+    .form-label {
+      font-size: 15px; color: #1c1c1e;
+      min-width: 90px; font-weight: 500;
+    }
+    .form-row input, .form-row select, .form-row textarea {
+      flex: 1; border: none; outline: none;
+      font-size: 15px; color: #1c1c1e;
+      background: transparent;
+      font-family: inherit;
+      text-align: right;
+    }
+    .form-row textarea {
+      text-align: left; resize: none; min-height: 44px;
+    }
+    .form-row input::placeholder, .form-row textarea::placeholder {
+      color: #c7c7cc;
+    }
+    .btn {
+      display: block; width: 100%;
+      padding: 15px;
+      border: none; border-radius: 12px;
+      font-size: 16px; font-weight: 600;
+      cursor: pointer; text-align: center;
+      margin-bottom: 12px;
+    }
+    .btn-primary { background: #007aff; color: #fff; }
+    .btn-secondary { background: #fff; color: #007aff; box-shadow: 0 1px 3px rgba(0,0,0,0.08); }
+    .btn-danger { background: #fff; color: #ff3b30; box-shadow: 0 1px 3px rgba(0,0,0,0.08); }
+    .btn:active { opacity: 0.7; }
+    .preview-wrapper {
+      background: #fff;
+      border-radius: 12px;
+      padding: 20px;
+      margin-bottom: 16px;
+      box-shadow: 0 1px 3px rgba(0,0,0,0.08);
+    }
+    .receipt-preview {
+      border: 2px solid #1c1c1e;
+      padding: 24px 20px;
+      font-family: 'Hiragino Mincho ProN', 'Yu Mincho', Georgia, serif;
+    }
+    .receipt-preview h1 {
+      text-align: center;
+      font-size: 22px;
+      letter-spacing: 8px;
+      margin-bottom: 16px;
+    }
+    .receipt-no { text-align: right; font-size: 12px; margin-bottom: 4px; }
+    .receipt-date { text-align: right; font-size: 13px; margin-bottom: 20px; }
+    .receipt-addressee {
+      font-size: 20px; font-weight: bold;
+      border-bottom: 2px solid #1c1c1e;
+      padding-bottom: 4px; margin-bottom: 20px;
+      display: inline-block;
+    }
+    .receipt-amount-section {
+      display: flex; align-items: center; gap: 8px;
+      margin-bottom: 6px;
+    }
+    .receipt-amount-label { font-size: 14px; min-width: 36px; }
+    .receipt-amount-value {
+      font-size: 24px; font-weight: bold;
+      border-bottom: 2px solid #1c1c1e;
+      padding: 4px 12px; flex: 1;
+    }
+    .receipt-tax-note { font-size: 11px; color: #555; margin-bottom: 16px; }
+    .receipt-tadashi { font-size: 13px; margin-bottom: 24px; line-height: 1.8; }
+    .receipt-issuer {
+      border-top: 1px solid #ccc;
+      padding-top: 16px;
+    }
+    .receipt-issuer-name { font-size: 16px; font-weight: bold; margin-bottom: 4px; }
+    .receipt-issuer-detail { font-size: 12px; color: #444; line-height: 1.7; }
+    .info-box {
+      background: #fff;
+      border-radius: 12px;
+      padding: 16px;
+      margin-bottom: 16px;
+      font-size: 13px;
+      color: #555;
+      line-height: 1.7;
+      box-shadow: 0 1px 3px rgba(0,0,0,0.08);
+    }
+    .info-box strong { color: #1c1c1e; display: block; margin-bottom: 4px; }
+
+    @media print {
+      body > *:not(.print-area) { display: none !important; }
+      .print-area {
+        display: block !important;
+        position: fixed; inset: 0;
+        padding: 15mm;
+        background: white;
+      }
+      .receipt-preview {
+        border: 2px solid #000;
+      }
+    }
+  </style>
+</head>
+<body>
+
+<!-- 一覧画面 -->
+<div id="screen-list" class="screen active">
+  <div class="nav">
+    <span style="min-width:60px"></span>
+    <span class="nav-title">領収書一覧</span>
+    <span style="min-width:60px"></span>
+  </div>
+  <div class="content">
+    <div id="receipt-list"></div>
+  </div>
+  <button class="fab" onclick="showCreate()">＋</button>
+</div>
+
+<!-- 作成・編集画面 -->
+<div id="screen-form" class="screen">
+  <div class="nav">
+    <button class="nav-btn" onclick="showList()">← 戻る</button>
+    <span class="nav-title" id="form-title">新規作成</span>
+    <button class="nav-btn nav-btn-right" onclick="saveReceipt()">保存</button>
+  </div>
+  <div class="content">
+    <div class="form-section">
+      <div class="form-section-title">基本情報</div>
+      <div class="form-group">
+        <div class="form-row">
+          <label class="form-label">日付</label>
+          <input type="date" id="f-date">
+        </div>
+        <div class="form-row">
+          <label class="form-label">領収書No.</label>
+          <input type="text" id="f-no" placeholder="例: 2024-001">
+        </div>
+      </div>
+    </div>
+
+    <div class="form-section">
+      <div class="form-section-title">宛先</div>
+      <div class="form-group">
+        <div class="form-row">
+          <label class="form-label">宛名</label>
+          <input type="text" id="f-addressee" placeholder="例: 株式会社〇〇">
+        </div>
+      </div>
+    </div>
+
+    <div class="form-section">
+      <div class="form-section-title">金額・品目</div>
+      <div class="form-group">
+        <div class="form-row">
+          <label class="form-label">金額（円）</label>
+          <input type="number" id="f-amount" placeholder="10000" inputmode="numeric">
+        </div>
+        <div class="form-row">
+          <label class="form-label">税区分</label>
+          <select id="f-tax">
+            <option value="included">税込</option>
+            <option value="excluded">税抜（消費税別）</option>
+            <option value="none">記載なし</option>
+          </select>
+        </div>
+        <div class="form-row">
+          <label class="form-label">但し書き</label>
+          <textarea id="f-tadashi" placeholder="例: ○○代として"></textarea>
+        </div>
+      </div>
+    </div>
+
+    <div class="form-section">
+      <div class="form-section-title">発行者情報</div>
+      <div class="form-group">
+        <div class="form-row">
+          <label class="form-label">会社名/氏名</label>
+          <input type="text" id="f-company" placeholder="例: 山田太郎事務所">
+        </div>
+        <div class="form-row">
+          <label class="form-label">住所</label>
+          <input type="text" id="f-address" placeholder="例: 東京都渋谷区〇〇">
+        </div>
+        <div class="form-row">
+          <label class="form-label">電話番号</label>
+          <input type="tel" id="f-tel" placeholder="例: 03-1234-5678">
+        </div>
+        <div class="form-row">
+          <label class="form-label">登録番号</label>
+          <input type="text" id="f-regno" placeholder="例: T1234567890123">
+        </div>
+      </div>
+    </div>
+
+    <button class="btn btn-danger" id="delete-btn" onclick="deleteReceipt()" style="display:none">この領収書を削除</button>
+  </div>
+</div>
+
+<!-- プレビュー画面 -->
+<div id="screen-preview" class="screen">
+  <div class="nav">
+    <button class="nav-btn" onclick="showList()">← 一覧</button>
+    <span class="nav-title">プレビュー</span>
+    <button class="nav-btn nav-btn-right" onclick="editCurrentReceipt()">編集</button>
+  </div>
+  <div class="content">
+    <div class="preview-wrapper print-area">
+      <div class="receipt-preview" id="receipt-preview-content"></div>
+    </div>
+    <button class="btn btn-primary" onclick="printReceipt()">印刷 / PDF保存</button>
+    <button class="btn btn-secondary" onclick="editCurrentReceipt()">編集する</button>
+  </div>
+</div>
+
+<!-- 設定画面 -->
+<div id="screen-settings" class="screen">
+  <div class="nav">
+    <span style="min-width:60px"></span>
+    <span class="nav-title">設定</span>
+    <button class="nav-btn nav-btn-right" onclick="saveSettings()">保存</button>
+  </div>
+  <div class="content">
+    <div class="form-section">
+      <div class="form-section-title">発行者情報（自動入力）</div>
+      <div class="form-group">
+        <div class="form-row">
+          <label class="form-label">会社名/氏名</label>
+          <input type="text" id="s-company" placeholder="例: 山田太郎">
+        </div>
+        <div class="form-row">
+          <label class="form-label">住所</label>
+          <input type="text" id="s-address" placeholder="例: 東京都渋谷区1-1-1">
+        </div>
+        <div class="form-row">
+          <label class="form-label">電話番号</label>
+          <input type="tel" id="s-tel" placeholder="例: 03-1234-5678">
+        </div>
+        <div class="form-row">
+          <label class="form-label">インボイス登録番号</label>
+          <input type="text" id="s-regno" placeholder="例: T1234567890123">
+        </div>
+      </div>
+    </div>
+
+    <div class="form-section">
+      <div class="form-section-title">領収書番号</div>
+      <div class="form-group">
+        <div class="form-row">
+          <label class="form-label">番号の接頭辞</label>
+          <input type="text" id="s-prefix" placeholder="例: 2024-">
+        </div>
+      </div>
+    </div>
+
+    <div class="info-box">
+      <strong>iPhoneのホーム画面に追加する方法</strong>
+      Safariでこのページを開き、画面下部の<br>
+      共有ボタン（□↑）→「ホーム画面に追加」<br>
+      でアプリとして使えます。<br>
+      追加後はオフラインでも利用可能です。
+    </div>
+  </div>
+</div>
+
+<!-- タブバー -->
+<div class="tabbar">
+  <button class="tab-btn active" id="tab-list" onclick="switchTab('list')">
+    <span class="tab-icon">📄</span>一覧
+  </button>
+  <button class="tab-btn" id="tab-settings" onclick="switchTab('settings')">
+    <span class="tab-icon">⚙️</span>設定
+  </button>
+</div>
+
+<script>
+  // PWA: Service Worker 登録
+  if ('serviceWorker' in navigator) {
+    navigator.serviceWorker.register('./sw.js').catch(console.warn);
+  }
+
+  // ストレージ
+  const DB = {
+    getReceipts: () => JSON.parse(localStorage.getItem('receipts') || '[]'),
+    saveReceipts: (list) => localStorage.setItem('receipts', JSON.stringify(list)),
+    getSettings: () => JSON.parse(localStorage.getItem('settings') || '{}'),
+    saveSettings: (s) => localStorage.setItem('settings', JSON.stringify(s)),
+    getNextNo() {
+      const s = this.getSettings();
+      const n = (parseInt(localStorage.getItem('receiptCounter') || '0') + 1);
+      localStorage.setItem('receiptCounter', String(n));
+      return (s.prefix || '') + String(n).padStart(3, '0');
+    }
+  };
+
+  let currentEditId = null;
+  let currentPreviewId = null;
+
+  function formatDate(dateStr) {
+    if (!dateStr) return '';
+    const [y, m, d] = dateStr.split('-');
+    return `${y}年${parseInt(m)}月${parseInt(d)}日`;
+  }
+
+  function formatAmount(n) {
+    return '¥' + parseInt(n || 0).toLocaleString('ja-JP');
+  }
+
+  function taxLabel(tax, amount) {
+    if (tax === 'included') return '（税込）';
+    if (tax === 'excluded') {
+      const t = Math.floor(parseInt(amount || 0) * 0.1);
+      return `（税抜）消費税: ¥${t.toLocaleString()} 別途`;
+    }
+    return '';
+  }
+
+  function showScreen(id) {
+    document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
+    document.getElementById('screen-' + id).classList.add('active');
+    document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+    if (id === 'list') document.getElementById('tab-list').classList.add('active');
+    if (id === 'settings') document.getElementById('tab-settings').classList.add('active');
+    window.scrollTo(0, 0);
+  }
+
+  function switchTab(tab) {
+    if (tab === 'list') showList();
+    if (tab === 'settings') { loadSettings(); showScreen('settings'); }
+  }
+
+  function showList() {
+    renderList();
+    showScreen('list');
+  }
+
+  function renderList() {
+    const receipts = DB.getReceipts().sort((a, b) => b.createdAt - a.createdAt);
+    const el = document.getElementById('receipt-list');
+    if (receipts.length === 0) {
+      el.innerHTML = `<div class="empty-state"><div class="empty-icon">📄</div><div class="empty-text">領収書がありません<br>右下の ＋ ボタンで作成できます</div></div>`;
+      return;
+    }
+    el.innerHTML = receipts.map(r => `
+      <div class="card">
+        <div class="receipt-item" onclick="showPreview('${r.id}')">
+          <div class="receipt-item-left">
+            <div class="receipt-item-title">${escHtml(r.addressee || '(宛名なし)')} 御中</div>
+            <div class="receipt-item-sub">${formatDate(r.date)}　No.${escHtml(r.no || '-')}</div>
+          </div>
+          <div class="receipt-item-amount">${formatAmount(r.amount)}</div>
+        </div>
+      </div>
+    `).join('');
+  }
+
+  function escHtml(str) {
+    return String(str).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+  }
+
+  function showCreate() {
+    currentEditId = null;
+    document.getElementById('form-title').textContent = '新規作成';
+    document.getElementById('delete-btn').style.display = 'none';
+    const today = new Date().toISOString().split('T')[0];
+    document.getElementById('f-date').value = today;
+    document.getElementById('f-no').value = DB.getNextNo();
+    document.getElementById('f-addressee').value = '';
+    document.getElementById('f-amount').value = '';
+    document.getElementById('f-tax').value = 'included';
+    document.getElementById('f-tadashi').value = '';
+    const s = DB.getSettings();
+    document.getElementById('f-company').value = s.company || '';
+    document.getElementById('f-address').value = s.address || '';
+    document.getElementById('f-tel').value = s.tel || '';
+    document.getElementById('f-regno').value = s.regno || '';
+    showScreen('form');
+  }
+
+  function editCurrentReceipt() {
+    if (!currentPreviewId) return;
+    const r = DB.getReceipts().find(x => x.id === currentPreviewId);
+    if (!r) return;
+    currentEditId = r.id;
+    document.getElementById('form-title').textContent = '編集';
+    document.getElementById('delete-btn').style.display = 'block';
+    document.getElementById('f-date').value = r.date || '';
+    document.getElementById('f-no').value = r.no || '';
+    document.getElementById('f-addressee').value = r.addressee || '';
+    document.getElementById('f-amount').value = r.amount || '';
+    document.getElementById('f-tax').value = r.tax || 'included';
+    document.getElementById('f-tadashi').value = r.tadashi || '';
+    document.getElementById('f-company').value = r.company || '';
+    document.getElementById('f-address').value = r.address || '';
+    document.getElementById('f-tel').value = r.tel || '';
+    document.getElementById('f-regno').value = r.regno || '';
+    showScreen('form');
+  }
+
+  function saveReceipt() {
+    const r = {
+      id: currentEditId || Date.now().toString(),
+      createdAt: currentEditId
+        ? (DB.getReceipts().find(x => x.id === currentEditId)?.createdAt || Date.now())
+        : Date.now(),
+      date: document.getElementById('f-date').value,
+      no: document.getElementById('f-no').value,
+      addressee: document.getElementById('f-addressee').value,
+      amount: document.getElementById('f-amount').value,
+      tax: document.getElementById('f-tax').value,
+      tadashi: document.getElementById('f-tadashi').value,
+      company: document.getElementById('f-company').value,
+      address: document.getElementById('f-address').value,
+      tel: document.getElementById('f-tel').value,
+      regno: document.getElementById('f-regno').value,
+    };
+    let receipts = DB.getReceipts();
+    if (currentEditId) {
+      receipts = receipts.map(x => x.id === currentEditId ? r : x);
+    } else {
+      receipts.push(r);
+    }
+    DB.saveReceipts(receipts);
+    currentPreviewId = r.id;
+    showPreview(r.id);
+  }
+
+  function deleteReceipt() {
+    if (!confirm('この領収書を削除しますか？')) return;
+    DB.saveReceipts(DB.getReceipts().filter(x => x.id !== currentEditId));
+    showList();
+  }
+
+  function showPreview(id) {
+    const r = DB.getReceipts().find(x => x.id === id);
+    if (!r) return;
+    currentPreviewId = id;
+    const esc = escHtml;
+    document.getElementById('receipt-preview-content').innerHTML = `
+      <h1>領　収　書</h1>
+      <div class="receipt-no">No. ${esc(r.no || '-')}</div>
+      <div class="receipt-date">${formatDate(r.date)}</div>
+      <div class="receipt-addressee">${esc(r.addressee || '　　　　　')}</div>
+      <div style="margin-bottom:16px"></div>
+      <div class="receipt-amount-section">
+        <span class="receipt-amount-label">金額</span>
+        <span class="receipt-amount-value">￥${parseInt(r.amount||0).toLocaleString('ja-JP')} ー</span>
+      </div>
+      <div class="receipt-tax-note">${taxLabel(r.tax, r.amount)}</div>
+      <div class="receipt-tadashi">但し、${esc(r.tadashi || '　　　　　')} として<br>上記正に領収いたしました。</div>
+      <div class="receipt-issuer">
+        <div class="receipt-issuer-name">${esc(r.company || '')}</div>
+        <div class="receipt-issuer-detail">
+          ${r.address ? esc(r.address) + '<br>' : ''}
+          ${r.tel ? 'TEL: ' + esc(r.tel) + '<br>' : ''}
+          ${r.regno ? '登録番号: ' + esc(r.regno) : ''}
+        </div>
+      </div>
+    `;
+    showScreen('preview');
+  }
+
+  function printReceipt() {
+    window.print();
+  }
+
+  function loadSettings() {
+    const s = DB.getSettings();
+    document.getElementById('s-company').value = s.company || '';
+    document.getElementById('s-address').value = s.address || '';
+    document.getElementById('s-tel').value = s.tel || '';
+    document.getElementById('s-regno').value = s.regno || '';
+    document.getElementById('s-prefix').value = s.prefix || '';
+  }
+
+  function saveSettings() {
+    DB.saveSettings({
+      company: document.getElementById('s-company').value,
+      address: document.getElementById('s-address').value,
+      tel: document.getElementById('s-tel').value,
+      regno: document.getElementById('s-regno').value,
+      prefix: document.getElementById('s-prefix').value,
+    });
+    alert('設定を保存しました');
+  }
+
+  // 初期表示
+  renderList();
+</script>
+</body>
+</html>
