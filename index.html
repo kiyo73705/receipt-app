@@ -9,87 +9,87 @@
   <meta name="theme-color" content="#007aff">
   <link rel="manifest" href="./manifest.json">
   <link rel="apple-touch-icon" href="./icon.svg">
-  <title>領収書作成アプリ</title>
+  <title>領収書アプリ</title>
   <style>
     * { box-sizing: border-box; margin: 0; padding: 0; }
     body {
-      font-family: -apple-system, BlinkMacSystemFont, 'Hiragino Sans', sans-serif;
-      background: #f2f2f7;
-      color: #1c1c1e;
-      min-height: 100vh;
+      font-family: -apple-system, BlinkMacSystemFont, 'Hiragino Sans', 'Yu Gothic UI', sans-serif;
+      background: #f2f2f7; color: #1c1c1e; min-height: 100vh;
     }
 
     /* ローディング */
     #loading-screen {
-      position: fixed; inset: 0;
-      background: #007aff;
+      position: fixed; inset: 0; background: #007aff; z-index: 999;
       display: flex; flex-direction: column;
-      align-items: center; justify-content: center;
-      color: #fff; gap: 16px; z-index: 999;
+      align-items: center; justify-content: center; gap: 16px; color: #fff;
     }
-    #loading-screen .app-icon { font-size: 64px; }
-    #loading-screen .app-name { font-size: 20px; font-weight: 600; }
-    #loading-screen .spinner {
-      width: 24px; height: 24px;
+    .loading-icon { font-size: 64px; }
+    .loading-title { font-size: 22px; font-weight: 700; }
+    .loading-sub { font-size: 14px; opacity: 0.8; }
+    .spinner {
+      width: 28px; height: 28px;
       border: 3px solid rgba(255,255,255,0.3);
-      border-top-color: #fff;
-      border-radius: 50%;
+      border-top-color: #fff; border-radius: 50%;
       animation: spin 0.8s linear infinite;
     }
     @keyframes spin { to { transform: rotate(360deg); } }
 
-    /* サインイン画面 */
+    /* サインイン */
     #signin-screen {
-      display: none;
-      position: fixed; inset: 0;
-      background: #007aff;
-      flex-direction: column;
-      align-items: center; justify-content: center;
-      padding: 40px 24px;
-      text-align: center;
+      display: none; position: fixed; inset: 0; background: #007aff;
+      flex-direction: column; align-items: center; justify-content: center;
+      padding: 40px 24px; text-align: center;
     }
-    #signin-screen .app-icon { font-size: 72px; margin-bottom: 16px; }
-    #signin-screen h1 { color: #fff; font-size: 26px; font-weight: 700; margin-bottom: 8px; }
-    #signin-screen p { color: rgba(255,255,255,0.8); font-size: 15px; margin-bottom: 48px; line-height: 1.6; }
+    .signin-icon { font-size: 72px; margin-bottom: 16px; }
+    .signin-title { color: #fff; font-size: 26px; font-weight: 700; margin-bottom: 10px; }
+    .signin-desc { color: rgba(255,255,255,0.85); font-size: 15px; line-height: 1.7; margin-bottom: 48px; }
     .signin-btn {
-      background: #fff; color: #1c1c1e;
-      border: none; border-radius: 14px;
-      padding: 16px 32px;
-      font-size: 16px; font-weight: 600;
-      cursor: pointer;
+      background: #fff; color: #1c1c1e; border: none; border-radius: 14px;
+      padding: 16px 28px; font-size: 16px; font-weight: 600; cursor: pointer;
       display: flex; align-items: center; gap: 12px;
       box-shadow: 0 4px 16px rgba(0,0,0,0.2);
     }
     .signin-btn:active { opacity: 0.85; }
-    .g-icon { width: 22px; height: 22px; }
+    .g-logo { width: 22px; height: 22px; }
+    .signin-note { color: rgba(255,255,255,0.6); font-size: 12px; margin-top: 24px; line-height: 1.6; }
+
+    /* エラー */
+    #error-screen {
+      display: none; position: fixed; inset: 0; background: #f2f2f7;
+      flex-direction: column; align-items: center; justify-content: center;
+      padding: 32px; text-align: center;
+    }
+    .error-icon { font-size: 48px; margin-bottom: 16px; }
+    .error-title { font-size: 18px; font-weight: 600; margin-bottom: 8px; }
+    .error-msg { font-size: 14px; color: #8e8e93; line-height: 1.6; margin-bottom: 24px; }
+    .error-code { font-size: 11px; color: #c7c7cc; font-family: monospace; }
 
     /* メインアプリ */
     #app { display: none; }
+
+    /* ナビゲーション */
     .nav {
-      background: #fff;
-      border-bottom: 1px solid #e5e5ea;
-      padding: 12px 16px;
-      padding-top: calc(12px + env(safe-area-inset-top));
-      display: flex;
-      align-items: center;
-      justify-content: space-between;
+      background: #fff; border-bottom: 1px solid #e5e5ea;
+      padding: 12px 16px; padding-top: calc(12px + env(safe-area-inset-top));
+      display: flex; align-items: center; justify-content: space-between;
       position: sticky; top: 0; z-index: 100;
     }
     .nav-title { font-size: 17px; font-weight: 600; }
     .nav-btn {
       background: none; border: none; cursor: pointer;
-      font-size: 15px; color: #007aff; padding: 4px 8px;
-      min-width: 60px;
+      font-size: 15px; color: #007aff; padding: 4px 8px; min-width: 60px;
     }
     .nav-btn-right { text-align: right; }
+
+    /* 画面 */
     .screen { display: none; }
     .screen.active { display: block; }
+
+    /* タブバー */
     .tabbar {
       position: fixed; bottom: 0; left: 0; right: 0;
-      background: rgba(255,255,255,0.95);
-      backdrop-filter: blur(10px);
-      border-top: 1px solid #e5e5ea;
-      display: flex;
+      background: rgba(255,255,255,0.95); backdrop-filter: blur(10px);
+      border-top: 1px solid #e5e5ea; display: flex;
       padding-bottom: env(safe-area-inset-bottom);
     }
     .tab-btn {
@@ -100,10 +100,26 @@
     }
     .tab-btn.active { color: #007aff; }
     .tab-icon { font-size: 22px; }
+
+    /* コンテンツ */
     .content {
       padding: 16px;
       padding-bottom: calc(80px + env(safe-area-inset-bottom));
     }
+
+    /* 同期バー */
+    .sync-bar {
+      background: #fff; padding: 8px 16px;
+      display: flex; align-items: center; gap: 8px;
+      font-size: 12px; color: #8e8e93;
+      border-bottom: 1px solid #f2f2f7;
+    }
+    .sync-dot { width: 8px; height: 8px; border-radius: 4px; background: #34c759; flex-shrink: 0; }
+    .sync-dot.syncing { background: #ff9500; animation: pulse 1s ease-in-out infinite; }
+    .sync-dot.error { background: #ff3b30; }
+    @keyframes pulse { 0%,100%{opacity:1} 50%{opacity:0.3} }
+
+    /* カード・リスト */
     .card {
       background: #fff; border-radius: 12px;
       overflow: hidden; margin-bottom: 16px;
@@ -123,31 +139,24 @@
     .empty-state { text-align: center; padding: 60px 20px; color: #8e8e93; }
     .empty-icon { font-size: 48px; margin-bottom: 12px; }
     .empty-text { font-size: 15px; line-height: 1.6; }
-    .sync-bar {
-      background: #fff; padding: 8px 16px;
-      display: flex; align-items: center; gap: 8px;
-      font-size: 12px; color: #8e8e93;
-      border-bottom: 1px solid #f2f2f7;
-    }
-    .sync-dot { width: 8px; height: 8px; border-radius: 4px; background: #34c759; flex-shrink: 0; }
-    .sync-dot.syncing { background: #ff9500; animation: pulse 1s infinite; }
-    @keyframes pulse { 0%,100%{opacity:1} 50%{opacity:0.4} }
+
+    /* FAB */
     .fab {
       position: fixed;
       bottom: calc(70px + env(safe-area-inset-bottom) + 16px);
-      right: 20px;
-      width: 56px; height: 56px;
-      background: #007aff; color: #fff;
-      border: none; border-radius: 28px;
+      right: 20px; width: 56px; height: 56px;
+      background: #007aff; color: #fff; border: none; border-radius: 28px;
       font-size: 28px; cursor: pointer;
       box-shadow: 0 4px 12px rgba(0,122,255,0.4);
       display: flex; align-items: center; justify-content: center;
     }
+    .fab:active { opacity: 0.8; }
+
+    /* フォーム */
     .form-section { margin-bottom: 20px; }
     .form-section-title {
-      font-size: 13px; color: #6d6d72;
-      font-weight: 600; letter-spacing: 0.5px;
-      margin-bottom: 8px; padding: 0 4px;
+      font-size: 13px; color: #6d6d72; font-weight: 600;
+      letter-spacing: 0.4px; margin-bottom: 8px; padding: 0 4px;
     }
     .form-group {
       background: #fff; border-radius: 12px;
@@ -167,6 +176,8 @@
     }
     .form-row textarea { text-align: left; resize: none; min-height: 44px; }
     .form-row input::placeholder, .form-row textarea::placeholder { color: #c7c7cc; }
+
+    /* ボタン */
     .btn {
       display: block; width: 100%; padding: 15px;
       border: none; border-radius: 12px;
@@ -177,6 +188,8 @@
     .btn-secondary { background: #fff; color: #007aff; box-shadow: 0 1px 3px rgba(0,0,0,0.08); }
     .btn-danger { background: #fff; color: #ff3b30; box-shadow: 0 1px 3px rgba(0,0,0,0.08); }
     .btn:active { opacity: 0.7; }
+
+    /* プレビュー */
     .preview-wrapper {
       background: #fff; border-radius: 12px;
       padding: 20px; margin-bottom: 16px;
@@ -187,49 +200,56 @@
       font-family: 'Hiragino Mincho ProN', 'Yu Mincho', Georgia, serif;
     }
     .receipt-preview h1 { text-align: center; font-size: 22px; letter-spacing: 8px; margin-bottom: 16px; }
-    .receipt-no { text-align: right; font-size: 12px; margin-bottom: 4px; }
-    .receipt-date { text-align: right; font-size: 13px; margin-bottom: 20px; }
+    .receipt-meta { text-align: right; font-size: 12px; margin-bottom: 2px; }
+    .receipt-date-text { text-align: right; font-size: 13px; margin-bottom: 20px; }
     .receipt-addressee {
       font-size: 20px; font-weight: bold;
       border-bottom: 2px solid #1c1c1e;
       padding-bottom: 4px; margin-bottom: 20px; display: inline-block;
     }
-    .receipt-amount-section { display: flex; align-items: center; gap: 8px; margin-bottom: 6px; }
+    .receipt-amount-row { display: flex; align-items: center; gap: 8px; margin-bottom: 6px; }
     .receipt-amount-label { font-size: 14px; min-width: 36px; }
     .receipt-amount-value {
       font-size: 24px; font-weight: bold;
-      border-bottom: 2px solid #1c1c1e;
-      padding: 4px 12px; flex: 1;
+      border-bottom: 2px solid #1c1c1e; padding: 4px 12px; flex: 1;
     }
     .receipt-tax-note { font-size: 11px; color: #555; margin-bottom: 16px; }
     .receipt-tadashi { font-size: 13px; margin-bottom: 24px; line-height: 1.8; }
     .receipt-issuer { border-top: 1px solid #ccc; padding-top: 16px; }
     .receipt-issuer-name { font-size: 16px; font-weight: bold; margin-bottom: 4px; }
     .receipt-issuer-detail { font-size: 12px; color: #444; line-height: 1.7; }
+
+    /* 設定 */
+    .user-card {
+      background: #fff; border-radius: 12px; padding: 16px;
+      display: flex; align-items: center; gap: 12px;
+      margin-bottom: 20px; box-shadow: 0 1px 3px rgba(0,0,0,0.08);
+    }
+    .user-avatar {
+      width: 44px; height: 44px; border-radius: 22px; overflow: hidden;
+      background: #007aff; display: flex; align-items: center;
+      justify-content: center; font-size: 20px; flex-shrink: 0;
+    }
+    .user-avatar img { width: 44px; height: 44px; border-radius: 22px; }
+    .user-name { font-size: 15px; font-weight: 600; }
+    .user-email { font-size: 12px; color: #8e8e93; }
+    .drive-badge {
+      background: #e8f0fe; color: #1a73e8; border-radius: 8px;
+      padding: 12px 16px; margin-bottom: 16px; font-size: 13px;
+      display: flex; align-items: center; gap: 10px;
+    }
+    .drive-badge .drive-icon { font-size: 20px; flex-shrink: 0; }
     .info-box {
       background: #fff; border-radius: 12px; padding: 16px;
       margin-bottom: 16px; font-size: 13px; color: #555;
       line-height: 1.7; box-shadow: 0 1px 3px rgba(0,0,0,0.08);
     }
-    .info-box strong { color: #1c1c1e; display: block; margin-bottom: 4px; }
-    .user-row {
-      display: flex; align-items: center; gap: 12px;
-      padding: 12px 16px; background: #fff;
-      border-radius: 12px; margin-bottom: 16px;
-      box-shadow: 0 1px 3px rgba(0,0,0,0.08);
-    }
-    .user-avatar {
-      width: 40px; height: 40px; border-radius: 20px;
-      background: #007aff; display: flex; align-items: center;
-      justify-content: center; color: #fff; font-size: 18px; flex-shrink: 0;
-    }
-    .user-info { flex: 1; }
-    .user-name { font-size: 15px; font-weight: 500; }
-    .user-email { font-size: 12px; color: #8e8e93; }
+    .info-box strong { color: #1c1c1e; display: block; margin-bottom: 4px; font-size: 14px; }
 
+    /* 印刷 */
     @media print {
-      body > *:not(.print-area) { display: none !important; }
-      .print-area {
+      body > *:not(#print-area) { display: none !important; }
+      #print-area {
         display: block !important; position: fixed; inset: 0;
         padding: 15mm; background: white;
       }
@@ -241,18 +261,23 @@
 
 <!-- ローディング -->
 <div id="loading-screen">
-  <div class="app-icon">🧾</div>
-  <div class="app-name">領収書アプリ</div>
+  <div class="loading-icon">🧾</div>
+  <div class="loading-title">領収書アプリ</div>
+  <div class="loading-sub">Googleアカウントを確認中...</div>
   <div class="spinner"></div>
 </div>
 
-<!-- サインイン画面 -->
+<!-- サインイン -->
 <div id="signin-screen">
-  <div class="app-icon">🧾</div>
-  <h1>領収書アプリ</h1>
-  <p>Googleアカウントでサインインすると<br>領収書データがクラウドに保存され<br>iPhoneとPCで共有できます</p>
-  <button class="signin-btn" onclick="signInWithGoogle()">
-    <svg class="g-icon" viewBox="0 0 24 24">
+  <div class="signin-icon">🧾</div>
+  <div class="signin-title">領収書アプリ</div>
+  <div class="signin-desc">
+    Googleアカウントでサインインすると<br>
+    領収書データをGoogle Driveに<br>
+    まとめて保存・同期できます
+  </div>
+  <button class="signin-btn" onclick="handleSignIn()">
+    <svg class="g-logo" viewBox="0 0 24 24">
       <path fill="#4285F4" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"/>
       <path fill="#34A853" d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z"/>
       <path fill="#FBBC05" d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z"/>
@@ -260,20 +285,33 @@
     </svg>
     Googleでサインイン
   </button>
+  <div class="signin-note">
+    データはあなたのGoogle Driveにのみ保存されます<br>
+    receipt-data.json という1ファイルで管理されます
+  </div>
+</div>
+
+<!-- エラー画面 -->
+<div id="error-screen">
+  <div class="error-icon">⚠️</div>
+  <div class="error-title">設定が必要です</div>
+  <div class="error-msg" id="error-msg">Google APIの設定が完了していません。</div>
+  <div class="error-code" id="error-code"></div>
 </div>
 
 <!-- メインアプリ -->
 <div id="app">
-  <!-- 一覧画面 -->
+
+  <!-- 一覧 -->
   <div id="screen-list" class="screen active">
     <div class="nav">
       <span style="min-width:60px"></span>
       <span class="nav-title">領収書一覧</span>
       <span style="min-width:60px"></span>
     </div>
-    <div id="sync-bar" class="sync-bar">
+    <div class="sync-bar">
       <div id="sync-dot" class="sync-dot"></div>
-      <span id="sync-text">クラウド同期済み</span>
+      <span id="sync-text">Google Driveに保存済み</span>
     </div>
     <div class="content">
       <div id="receipt-list"></div>
@@ -281,7 +319,7 @@
     <button class="fab" onclick="showCreate()">＋</button>
   </div>
 
-  <!-- 作成・編集画面 -->
+  <!-- 作成・編集 -->
   <div id="screen-form" class="screen">
     <div class="nav">
       <button class="nav-btn" onclick="showList()">← 戻る</button>
@@ -297,7 +335,7 @@
             <input type="date" id="f-date">
           </div>
           <div class="form-row">
-            <label class="form-label">領収書No.</label>
+            <label class="form-label">領収書 No.</label>
             <input type="text" id="f-no" placeholder="例: 2024-001">
           </div>
         </div>
@@ -357,7 +395,7 @@
     </div>
   </div>
 
-  <!-- プレビュー画面 -->
+  <!-- プレビュー -->
   <div id="screen-preview" class="screen">
     <div class="nav">
       <button class="nav-btn" onclick="showList()">← 一覧</button>
@@ -365,15 +403,15 @@
       <button class="nav-btn nav-btn-right" onclick="editCurrentReceipt()">編集</button>
     </div>
     <div class="content">
-      <div class="preview-wrapper print-area">
+      <div class="preview-wrapper" id="print-area">
         <div class="receipt-preview" id="receipt-preview-content"></div>
       </div>
-      <button class="btn btn-primary" onclick="printReceipt()">印刷 / PDF保存</button>
+      <button class="btn btn-primary" onclick="window.print()">印刷 / PDF保存</button>
       <button class="btn btn-secondary" onclick="editCurrentReceipt()">編集する</button>
     </div>
   </div>
 
-  <!-- 設定画面 -->
+  <!-- 設定 -->
   <div id="screen-settings" class="screen">
     <div class="nav">
       <span style="min-width:60px"></span>
@@ -381,7 +419,16 @@
       <button class="nav-btn nav-btn-right" onclick="saveSettings()">保存</button>
     </div>
     <div class="content">
-      <div id="user-row-container"></div>
+      <div id="user-card-area"></div>
+
+      <div class="drive-badge">
+        <div class="drive-icon">📁</div>
+        <div>
+          <div style="font-weight:600;margin-bottom:2px">Google Drive に保存中</div>
+          <div style="font-size:12px;color:#555">マイドライブ / receipt-data.json</div>
+        </div>
+      </div>
+
       <div class="form-section">
         <div class="form-section-title">発行者情報（自動入力）</div>
         <div class="form-group">
@@ -414,9 +461,9 @@
       </div>
       <div class="info-box">
         <strong>iPhoneのホーム画面に追加する方法</strong>
-        Safariでこのページを開き、画面下部の<br>
+        Safariでこのページを開き、下部の<br>
         共有ボタン（□↑）→「ホーム画面に追加」<br>
-        でアプリとして使えます。オフラインでも利用可能です。
+        でアプリアイコンとして使えます。
       </div>
       <button class="btn btn-danger" onclick="handleSignOut()">サインアウト</button>
     </div>
@@ -433,221 +480,332 @@
   </div>
 </div>
 
-<!-- Firebase SDK -->
-<script type="module">
-  import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js';
-  import {
-    getFirestore, collection, doc, setDoc, getDocs,
-    deleteDoc, onSnapshot, query, orderBy,
-    enableIndexedDbPersistence
-  } from 'https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js';
-  import {
-    getAuth, signInWithPopup, GoogleAuthProvider,
-    onAuthStateChanged, signOut
-  } from 'https://www.gstatic.com/firebasejs/10.12.0/firebase-auth.js';
+<!-- Google APIs -->
+<script src="https://apis.google.com/js/api.js" onload="onGapiLoad()"></script>
+<script src="https://accounts.google.com/gsi/client" onload="onGisLoad()"></script>
 
-  // =============================================
-  // Firebase設定（コンソールで取得した値に変更）
-  // =============================================
-  const firebaseConfig = {
-    apiKey: "REPLACE_API_KEY",
-    authDomain: "REPLACE_AUTH_DOMAIN",
-    projectId: "REPLACE_PROJECT_ID",
-    storageBucket: "REPLACE_STORAGE_BUCKET",
-    messagingSenderId: "REPLACE_MESSAGING_SENDER_ID",
-    appId: "REPLACE_APP_ID"
-  };
-  // =============================================
+<script>
+  // ============================================================
+  // Google Cloud Console で取得した値をここに設定してください
+  // ============================================================
+  const CLIENT_ID  = 'REPLACE_YOUR_CLIENT_ID';   // OAuth 2.0 クライアントID
+  const API_KEY    = 'REPLACE_YOUR_API_KEY';       // APIキー
+  // ============================================================
 
-  const app = initializeApp(firebaseConfig);
-  const auth = getAuth(app);
-  const db = getFirestore(app);
+  const SCOPES      = 'https://www.googleapis.com/auth/drive.file';
+  const FILE_NAME   = 'receipt-data.json';
+  const DISCOVERY   = 'https://www.googleapis.com/discovery/v1/apis/drive/v3/rest';
 
-  // オフライン永続化
-  enableIndexedDbPersistence(db).catch(() => {});
+  let tokenClient;
+  let gapiReady = false;
+  let gisReady  = false;
+  let fileId    = null;
 
-  let currentUser = null;
-  let currentEditId = null;
+  // アプリ内データ（全件 in memory）
+  let data = { version: 1, settings: {}, counter: 0, receipts: [] };
+
+  let currentEditId    = null;
   let currentPreviewId = null;
-  let unsubscribeReceipts = null;
 
   // ---- ユーティリティ ----
   function esc(str) {
     return String(str||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
   }
-  function formatDate(s) {
+  function fmtDate(s) {
     if (!s) return '';
     const [y,m,d] = s.split('-');
     return `${y}年${parseInt(m)}月${parseInt(d)}日`;
   }
-  function formatAmt(n) { return '¥' + parseInt(n||0).toLocaleString('ja-JP'); }
-  function taxLabel(tax, amount) {
+  function fmtAmt(n) { return '¥' + parseInt(n||0).toLocaleString('ja-JP'); }
+  function taxNote(tax, amt) {
     if (tax === 'included') return '（税込）';
-    if (tax === 'excluded') return `（税抜）消費税: ¥${Math.floor(parseInt(amount||0)*.1).toLocaleString()} 別途`;
+    if (tax === 'excluded') return `（税抜）消費税: ¥${Math.floor(parseInt(amt||0)*.1).toLocaleString()} 別途`;
     return '';
   }
-  function setSyncing(on) {
+  function nextNo() {
+    data.counter = (data.counter || 0) + 1;
+    return (data.settings.prefix || '') + String(data.counter).padStart(3,'0');
+  }
+
+  // ---- 同期バー ----
+  function setSyncing(state, msg) {
     const dot = document.getElementById('sync-dot');
     const txt = document.getElementById('sync-text');
-    if (on) { dot.className='sync-dot syncing'; txt.textContent='同期中...'; }
-    else     { dot.className='sync-dot'; txt.textContent='クラウド同期済み'; }
+    if (state === 'syncing') { dot.className='sync-dot syncing'; txt.textContent = msg || '同期中...'; }
+    else if (state === 'error') { dot.className='sync-dot error'; txt.textContent = msg || '保存エラー'; }
+    else { dot.className='sync-dot'; txt.textContent = msg || 'Google Driveに保存済み'; }
   }
 
-  // ---- 認証 ----
-  window.signInWithGoogle = async () => {
-    const provider = new GoogleAuthProvider();
-    try { await signInWithPopup(auth, provider); }
-    catch(e) { alert('サインインに失敗しました: ' + e.message); }
+  // ---- Google API 初期化 ----
+  function onGapiLoad() {
+    gapi.load('client', async () => {
+      // API キーが未設定なら設定画面を表示
+      if (API_KEY === 'REPLACE_YOUR_API_KEY' || CLIENT_ID === 'REPLACE_YOUR_CLIENT_ID') {
+        showError('Google APIキーとクライアントIDを設定してください。', 'index.html の CLIENT_ID と API_KEY を更新してください。');
+        return;
+      }
+      await gapi.client.init({ apiKey: API_KEY, discoveryDocs: [DISCOVERY] });
+      gapiReady = true;
+      maybeInitApp();
+    });
+  }
+  function onGisLoad() {
+    if (CLIENT_ID === 'REPLACE_YOUR_CLIENT_ID') return;
+    tokenClient = google.accounts.oauth2.initTokenClient({
+      client_id: CLIENT_ID,
+      scope: SCOPES,
+      callback: async (resp) => {
+        if (resp.error) { showError('サインインに失敗しました', resp.error); return; }
+        await afterSignIn();
+      },
+    });
+    gisReady = true;
+    maybeInitApp();
+  }
+  function maybeInitApp() {
+    if (!gapiReady || !gisReady) return;
+    // 既存トークンがあれば自動サインイン
+    const cached = localStorage.getItem('gtoken');
+    if (cached) {
+      gapi.client.setToken({ access_token: cached });
+      afterSignIn().catch(() => {
+        localStorage.removeItem('gtoken');
+        showSignin();
+      });
+    } else {
+      showSignin();
+    }
+  }
+
+  // ---- サインイン・アウト ----
+  window.handleSignIn = () => {
+    if (!tokenClient) return;
+    tokenClient.requestAccessToken({ prompt: 'consent' });
   };
-  window.handleSignOut = async () => {
+  window.handleSignOut = () => {
     if (!confirm('サインアウトしますか？')) return;
-    if (unsubscribeReceipts) unsubscribeReceipts();
-    await signOut(auth);
+    const token = gapi.client.getToken();
+    if (token) google.accounts.oauth2.revoke(token.access_token, ()=>{});
+    gapi.client.setToken(null);
+    localStorage.removeItem('gtoken');
+    localStorage.removeItem('driveFileId');
+    fileId = null;
+    data = { version:1, settings:{}, counter:0, receipts:[] };
+    showSignin();
   };
 
-  // ---- 設定（Firestore） ----
-  async function loadSettings() {
-    if (!currentUser) return {};
-    try {
-      const snap = await getDocs(collection(db, `users/${currentUser.uid}/settings`));
-      const s = {};
-      snap.forEach(d => Object.assign(s, d.data()));
-      document.getElementById('s-company').value = s.company||'';
-      document.getElementById('s-address').value = s.address||'';
-      document.getElementById('s-tel').value     = s.tel||'';
-      document.getElementById('s-regno').value   = s.regno||'';
-      document.getElementById('s-prefix').value  = s.prefix||'';
-      return s;
-    } catch(e) { return {}; }
-  }
-  window.saveSettings = async () => {
-    if (!currentUser) return;
-    const s = {
-      company: document.getElementById('s-company').value,
-      address: document.getElementById('s-address').value,
-      tel:     document.getElementById('s-tel').value,
-      regno:   document.getElementById('s-regno').value,
-      prefix:  document.getElementById('s-prefix').value,
-    };
-    setSyncing(true);
-    await setDoc(doc(db, `users/${currentUser.uid}/settings/main`), s);
-    setSyncing(false);
-    alert('設定を保存しました');
-  };
+  async function afterSignIn() {
+    // トークンをキャッシュ
+    const token = gapi.client.getToken();
+    if (token) localStorage.setItem('gtoken', token.access_token);
 
-  async function getSettings() {
-    if (!currentUser) return {};
+    // ユーザー情報取得
+    let userInfo = null;
     try {
-      const snap = await getDocs(collection(db, `users/${currentUser.uid}/settings`));
-      const s = {};
-      snap.forEach(d => Object.assign(s, d.data()));
-      return s;
-    } catch(e) { return {}; }
+      const res = await gapi.client.request({ path: 'https://www.googleapis.com/oauth2/v3/userinfo' });
+      userInfo = res.result;
+    } catch(e) {}
+
+    // Google Driveからデータ読み込み
+    await loadFromDrive();
+    showApp(userInfo);
   }
-  async function getNextNo() {
-    const s = await getSettings();
-    const prefix = s.prefix || '';
-    const n = (parseInt(localStorage.getItem('receiptCounter')||'0') + 1);
-    localStorage.setItem('receiptCounter', String(n));
-    return prefix + String(n).padStart(3, '0');
+
+  // ---- Google Drive CRUD ----
+  async function loadFromDrive() {
+    // キャッシュされたファイルIDを確認
+    const cached = localStorage.getItem('driveFileId');
+    if (cached) {
+      try {
+        const res = await gapi.client.drive.files.get({ fileId: cached, fields: 'id' });
+        if (res.result.id) { fileId = cached; await readFile(); return; }
+      } catch(e) { localStorage.removeItem('driveFileId'); }
+    }
+    // ファイル検索
+    const res = await gapi.client.drive.files.list({
+      q: `name='${FILE_NAME}' and trashed=false`,
+      fields: 'files(id,name)',
+      spaces: 'drive',
+    });
+    const files = res.result.files;
+    if (files && files.length > 0) {
+      fileId = files[0].id;
+      localStorage.setItem('driveFileId', fileId);
+      await readFile();
+    } else {
+      // 新規作成
+      await writeFile();
+    }
+  }
+
+  async function readFile() {
+    const res = await gapi.client.request({
+      path: `https://www.googleapis.com/drive/v3/files/${fileId}`,
+      params: { alt: 'media' },
+    });
+    try { data = JSON.parse(res.body); }
+    catch(e) { data = { version:1, settings:{}, counter:0, receipts:[] }; }
+  }
+
+  async function writeFile() {
+    setSyncing('syncing');
+    const content = JSON.stringify(data, null, 2);
+    try {
+      if (fileId) {
+        // 上書き更新
+        await gapi.client.request({
+          path: `https://www.googleapis.com/upload/drive/v3/files/${fileId}`,
+          method: 'PATCH',
+          params: { uploadType: 'media' },
+          headers: { 'Content-Type': 'application/json; charset=UTF-8' },
+          body: content,
+        });
+      } else {
+        // 新規作成（multipart）
+        const boundary = 'receipt_app_boundary_xyz';
+        const meta = JSON.stringify({ name: FILE_NAME, mimeType: 'application/json' });
+        const body = `--${boundary}\r\nContent-Type: application/json; charset=UTF-8\r\n\r\n${meta}\r\n--${boundary}\r\nContent-Type: application/json; charset=UTF-8\r\n\r\n${content}\r\n--${boundary}--`;
+        const res = await gapi.client.request({
+          path: 'https://www.googleapis.com/upload/drive/v3/files',
+          method: 'POST',
+          params: { uploadType: 'multipart' },
+          headers: { 'Content-Type': `multipart/related; boundary=${boundary}` },
+          body,
+        });
+        fileId = res.result.id;
+        localStorage.setItem('driveFileId', fileId);
+      }
+      setSyncing('ok');
+    } catch(e) {
+      setSyncing('error', '保存失敗 - オフライン？');
+    }
   }
 
   // ---- 画面切替 ----
   function showScreen(id) {
     document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
-    document.getElementById('screen-' + id).classList.add('active');
+    document.getElementById('screen-'+id).classList.add('active');
     document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
     if (id === 'list') document.getElementById('tab-list').classList.add('active');
     if (id === 'settings') document.getElementById('tab-settings').classList.add('active');
     window.scrollTo(0,0);
   }
-  window.switchTab = (tab) => {
-    if (tab === 'list') showList();
-    if (tab === 'settings') { loadSettings(); renderUserRow(); showScreen('settings'); }
-  };
-  window.showList = () => { showScreen('list'); };
-
-  // ---- 一覧（リアルタイム同期） ----
-  function subscribeReceipts() {
-    if (!currentUser) return;
-    if (unsubscribeReceipts) unsubscribeReceipts();
-    const q = query(collection(db, `users/${currentUser.uid}/receipts`), orderBy('createdAt','desc'));
-    unsubscribeReceipts = onSnapshot(q, (snap) => {
-      const receipts = [];
-      snap.forEach(d => receipts.push({ id: d.id, ...d.data() }));
-      renderList(receipts);
-    }, () => {
-      // オフライン時はキャッシュから自動表示される
-    });
+  function showLoading() {
+    document.getElementById('loading-screen').style.display = 'flex';
+    document.getElementById('signin-screen').style.display = 'none';
+    document.getElementById('error-screen').style.display = 'none';
+    document.getElementById('app').style.display = 'none';
+  }
+  function showSignin() {
+    document.getElementById('loading-screen').style.display = 'none';
+    document.getElementById('signin-screen').style.display = 'flex';
+    document.getElementById('error-screen').style.display = 'none';
+    document.getElementById('app').style.display = 'none';
+  }
+  function showApp(userInfo) {
+    document.getElementById('loading-screen').style.display = 'none';
+    document.getElementById('signin-screen').style.display = 'none';
+    document.getElementById('error-screen').style.display = 'none';
+    document.getElementById('app').style.display = 'block';
+    renderUserCard(userInfo);
+    renderList();
+    loadSettingsUI();
+  }
+  function showError(msg, code) {
+    document.getElementById('loading-screen').style.display = 'none';
+    document.getElementById('signin-screen').style.display = 'none';
+    document.getElementById('app').style.display = 'none';
+    document.getElementById('error-msg').textContent = msg;
+    document.getElementById('error-code').textContent = code || '';
+    document.getElementById('error-screen').style.display = 'flex';
   }
 
-  function renderList(receipts) {
+  window.switchTab = (tab) => {
+    if (tab === 'list') { showScreen('list'); }
+    if (tab === 'settings') { loadSettingsUI(); showScreen('settings'); }
+  };
+  window.showList = () => showScreen('list');
+
+  // ---- ユーザーカード ----
+  function renderUserCard(u) {
+    document.getElementById('user-card-area').innerHTML = `
+      <div class="user-card">
+        <div class="user-avatar">
+          ${u && u.picture ? `<img src="${esc(u.picture)}" alt="">` : '👤'}
+        </div>
+        <div>
+          <div class="user-name">${esc((u && u.name) || 'ユーザー')}</div>
+          <div class="user-email">${esc((u && u.email) || '')}</div>
+        </div>
+      </div>`;
+  }
+
+  // ---- 一覧 ----
+  function renderList() {
     const el = document.getElementById('receipt-list');
-    if (!receipts || receipts.length === 0) {
+    const list = (data.receipts || []).slice().sort((a,b) => b.createdAt - a.createdAt);
+    if (list.length === 0) {
       el.innerHTML = `<div class="empty-state"><div class="empty-icon">📄</div><div class="empty-text">領収書がありません<br>右下の ＋ ボタンで作成できます</div></div>`;
       return;
     }
-    el.innerHTML = receipts.map(r => `
+    el.innerHTML = list.map(r => `
       <div class="card">
-        <div class="receipt-item" onclick="showPreviewById('${r.id}')">
+        <div class="receipt-item" onclick="showPreviewById('${esc(r.id)}')">
           <div class="receipt-item-left">
-            <div class="receipt-item-title">${esc(r.addressee||'(宛名なし)')} 御中</div>
-            <div class="receipt-item-sub">${formatDate(r.date)}　No.${esc(r.no||'-')}</div>
+            <div class="receipt-item-title">${esc(r.addressee || '(宛名なし)')} 御中</div>
+            <div class="receipt-item-sub">${fmtDate(r.date)}　No.${esc(r.no || '-')}</div>
           </div>
-          <div class="receipt-item-amount">${formatAmt(r.amount)}</div>
+          <div class="receipt-item-amount">${fmtAmt(r.amount)}</div>
         </div>
-      </div>
-    `).join('');
+      </div>`).join('');
   }
 
   // ---- 新規作成 ----
-  window.showCreate = async () => {
+  window.showCreate = () => {
     currentEditId = null;
     document.getElementById('form-title').textContent = '新規作成';
     document.getElementById('delete-btn').style.display = 'none';
     document.getElementById('f-date').value = new Date().toISOString().split('T')[0];
-    document.getElementById('f-no').value = await getNextNo();
+    document.getElementById('f-no').value = nextNo();
     document.getElementById('f-addressee').value = '';
     document.getElementById('f-amount').value = '';
     document.getElementById('f-tax').value = 'included';
     document.getElementById('f-tadashi').value = '';
-    const s = await getSettings();
-    document.getElementById('f-company').value = s.company||'';
-    document.getElementById('f-address').value = s.address||'';
-    document.getElementById('f-tel').value     = s.tel||'';
-    document.getElementById('f-regno').value   = s.regno||'';
+    const s = data.settings || {};
+    document.getElementById('f-company').value = s.company || '';
+    document.getElementById('f-address').value = s.address || '';
+    document.getElementById('f-tel').value = s.tel || '';
+    document.getElementById('f-regno').value = s.regno || '';
     showScreen('form');
   };
 
   // ---- 編集 ----
-  window.editCurrentReceipt = async () => {
-    if (!currentPreviewId || !currentUser) return;
-    const d = await getDocs(collection(db, `users/${currentUser.uid}/receipts`));
-    let r = null;
-    d.forEach(x => { if (x.id === currentPreviewId) r = { id: x.id, ...x.data() }; });
+  window.editCurrentReceipt = () => {
+    const r = (data.receipts||[]).find(x => x.id === currentPreviewId);
     if (!r) return;
     currentEditId = r.id;
     document.getElementById('form-title').textContent = '編集';
     document.getElementById('delete-btn').style.display = 'block';
-    document.getElementById('f-date').value      = r.date||'';
-    document.getElementById('f-no').value        = r.no||'';
-    document.getElementById('f-addressee').value = r.addressee||'';
-    document.getElementById('f-amount').value    = r.amount||'';
-    document.getElementById('f-tax').value       = r.tax||'included';
-    document.getElementById('f-tadashi').value   = r.tadashi||'';
-    document.getElementById('f-company').value   = r.company||'';
-    document.getElementById('f-address').value   = r.address||'';
-    document.getElementById('f-tel').value       = r.tel||'';
-    document.getElementById('f-regno').value     = r.regno||'';
+    document.getElementById('f-date').value = r.date || '';
+    document.getElementById('f-no').value = r.no || '';
+    document.getElementById('f-addressee').value = r.addressee || '';
+    document.getElementById('f-amount').value = r.amount || '';
+    document.getElementById('f-tax').value = r.tax || 'included';
+    document.getElementById('f-tadashi').value = r.tadashi || '';
+    document.getElementById('f-company').value = r.company || '';
+    document.getElementById('f-address').value = r.address || '';
+    document.getElementById('f-tel').value = r.tel || '';
+    document.getElementById('f-regno').value = r.regno || '';
     showScreen('form');
   };
 
   // ---- 保存 ----
   window.saveReceipt = async () => {
-    if (!currentUser) return;
     const id = currentEditId || Date.now().toString();
+    const existing = (data.receipts||[]).find(x => x.id === id);
     const r = {
-      createdAt: currentEditId ? (Date.now()) : Date.now(),
+      id,
+      createdAt: existing ? existing.createdAt : Date.now(),
       date:      document.getElementById('f-date').value,
       no:        document.getElementById('f-no').value,
       addressee: document.getElementById('f-addressee').value,
@@ -659,91 +817,79 @@
       tel:       document.getElementById('f-tel').value,
       regno:     document.getElementById('f-regno').value,
     };
-    setSyncing(true);
-    await setDoc(doc(db, `users/${currentUser.uid}/receipts/${id}`), r);
-    setSyncing(false);
+    if (currentEditId) {
+      data.receipts = (data.receipts||[]).map(x => x.id === currentEditId ? r : x);
+    } else {
+      if (!data.receipts) data.receipts = [];
+      data.receipts.push(r);
+    }
+    await writeFile();
     currentPreviewId = id;
-    showPreview({ id, ...r });
+    showPreview(r);
+    renderList();
   };
 
   // ---- 削除 ----
   window.deleteReceipt = async () => {
-    if (!currentEditId || !currentUser) return;
+    if (!currentEditId) return;
     if (!confirm('この領収書を削除しますか？')) return;
-    setSyncing(true);
-    await deleteDoc(doc(db, `users/${currentUser.uid}/receipts/${currentEditId}`));
-    setSyncing(false);
+    data.receipts = (data.receipts||[]).filter(x => x.id !== currentEditId);
+    await writeFile();
+    renderList();
     showList();
   };
 
   // ---- プレビュー ----
-  window.showPreviewById = async (id) => {
-    if (!currentUser) return;
-    const snap = await getDocs(collection(db, `users/${currentUser.uid}/receipts`));
-    snap.forEach(d => { if (d.id === id) showPreview({ id: d.id, ...d.data() }); });
+  window.showPreviewById = (id) => {
+    const r = (data.receipts||[]).find(x => x.id === id);
+    if (r) showPreview(r);
   };
 
   function showPreview(r) {
     currentPreviewId = r.id;
     document.getElementById('receipt-preview-content').innerHTML = `
       <h1>領　収　書</h1>
-      <div class="receipt-no">No. ${esc(r.no||'-')}</div>
-      <div class="receipt-date">${formatDate(r.date)}</div>
+      <div class="receipt-meta">No. ${esc(r.no||'-')}</div>
+      <div class="receipt-date-text">${fmtDate(r.date)}</div>
       <div class="receipt-addressee">${esc(r.addressee||'　　　　　')}</div>
       <div style="margin-bottom:16px"></div>
-      <div class="receipt-amount-section">
+      <div class="receipt-amount-row">
         <span class="receipt-amount-label">金額</span>
         <span class="receipt-amount-value">￥${parseInt(r.amount||0).toLocaleString('ja-JP')} ー</span>
       </div>
-      <div class="receipt-tax-note">${taxLabel(r.tax, r.amount)}</div>
+      <div class="receipt-tax-note">${taxNote(r.tax, r.amount)}</div>
       <div class="receipt-tadashi">但し、${esc(r.tadashi||'　　　　　')} として<br>上記正に領収いたしました。</div>
       <div class="receipt-issuer">
         <div class="receipt-issuer-name">${esc(r.company||'')}</div>
         <div class="receipt-issuer-detail">
-          ${r.address ? esc(r.address)+'<br>':'' }
-          ${r.tel     ? 'TEL: '+esc(r.tel)+'<br>':''}
-          ${r.regno   ? '登録番号: '+esc(r.regno):''}
+          ${r.address ? esc(r.address)+'<br>' : ''}
+          ${r.tel     ? 'TEL: '+esc(r.tel)+'<br>' : ''}
+          ${r.regno   ? '登録番号: '+esc(r.regno) : ''}
         </div>
-      </div>
-    `;
+      </div>`;
     showScreen('preview');
   }
 
-  window.printReceipt = () => window.print();
-
-  // ---- ユーザー情報 ----
-  function renderUserRow() {
-    if (!currentUser) return;
-    document.getElementById('user-row-container').innerHTML = `
-      <div class="user-row">
-        <div class="user-avatar">
-          ${currentUser.photoURL
-            ? `<img src="${currentUser.photoURL}" style="width:40px;height:40px;border-radius:20px;">`
-            : '👤'}
-        </div>
-        <div class="user-info">
-          <div class="user-name">${esc(currentUser.displayName||'')}</div>
-          <div class="user-email">${esc(currentUser.email||'')}</div>
-        </div>
-      </div>
-    `;
+  // ---- 設定 ----
+  function loadSettingsUI() {
+    const s = data.settings || {};
+    document.getElementById('s-company').value = s.company || '';
+    document.getElementById('s-address').value = s.address || '';
+    document.getElementById('s-tel').value = s.tel || '';
+    document.getElementById('s-regno').value = s.regno || '';
+    document.getElementById('s-prefix').value = s.prefix || '';
   }
-
-  // ---- 認証状態の監視 ----
-  onAuthStateChanged(auth, (user) => {
-    document.getElementById('loading-screen').style.display = 'none';
-    if (user) {
-      currentUser = user;
-      document.getElementById('signin-screen').style.display = 'none';
-      document.getElementById('app').style.display = 'block';
-      subscribeReceipts();
-    } else {
-      currentUser = null;
-      if (unsubscribeReceipts) unsubscribeReceipts();
-      document.getElementById('signin-screen').style.display = 'flex';
-      document.getElementById('app').style.display = 'none';
-    }
-  });
+  window.saveSettings = async () => {
+    data.settings = {
+      company: document.getElementById('s-company').value,
+      address: document.getElementById('s-address').value,
+      tel:     document.getElementById('s-tel').value,
+      regno:   document.getElementById('s-regno').value,
+      prefix:  document.getElementById('s-prefix').value,
+    };
+    await writeFile();
+    alert('設定を保存しました');
+  };
 
   // PWA
   if ('serviceWorker' in navigator) {
