@@ -605,9 +605,6 @@
   </div>
 </div>
 
-<!-- Google Identity Services のみ（GAPI不要）-->
-<script src="https://accounts.google.com/gsi/client" onload="onGisLoad()"></script>
-
 <script>
   const CLIENT_ID  = '473681624619-ma9d1qrpplectu57uq1s2pism8b2vlq9.apps.googleusercontent.com';
   const API_KEY    = 'AIzaSyBi8BN8kNs7RNqvr9X5yEHdP_gpHPBKG5M';
@@ -1124,5 +1121,7 @@
     navigator.serviceWorker.register('./sw.js').catch(()=>{});
   }
 </script>
+<!-- GIS スクリプトはインラインスクリプトの後に置くことで onGisLoad の定義を保証 -->
+<script src="https://accounts.google.com/gsi/client" onload="onGisLoad()"></script>
 </body>
 </html>
