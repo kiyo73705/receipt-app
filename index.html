@@ -661,8 +661,10 @@
     else { dot.className='sync-dot'; txt.textContent = msg || 'Google Driveに保存済み'; }
   }
 
-  // ---- Google Identity Services 初期化（ポーリング方式）----
-  function onGisLoad() { /* onload属性用のダミー - initGIS()が実体 */ }
+  // ---- OAuth 初期化（GIS不要・手動リダイレクト方式）----
+  function onGisLoad() { /* 未使用だが互換性のため残す */ }
+
+  const REDIRECT_URI = window.location.origin + window.location.pathname;
 
   // リダイレクトコールバック: URLハッシュからトークンを取得
   function handleRedirectCallback() {
@@ -673,8 +675,7 @@
     if (!token) return false;
     accessToken = token;
     localStorage.setItem('gtoken', token);
-    // URLハッシュをクリア
-    history.replaceState(null, '', window.location.pathname + window.location.search);
+    history.replaceState(null, '', window.location.pathname);
     afterSignIn().catch(() => {
       accessToken = null;
       localStorage.removeItem('gtoken');
@@ -683,18 +684,7 @@
     return true;
   }
 
-  function initGIS() {
-    if (typeof google === 'undefined' || !google.accounts || !google.accounts.oauth2) {
-      setTimeout(initGIS, 100);
-      return;
-    }
-    tokenClient = google.accounts.oauth2.initTokenClient({
-      client_id: CLIENT_ID,
-      scope: SCOPES,
-      ux_mode: 'redirect',
-      redirect_uri: window.location.origin + window.location.pathname,
-    });
-    // リダイレクトコールバックをチェック
+  function initApp() {
     if (handleRedirectCallback()) return;
     const cached = localStorage.getItem('gtoken');
     if (cached) {
@@ -708,8 +698,7 @@
       showSignin();
     }
   }
-  // ページロード直後から GIS の準備完了を待つ
-  initGIS();
+  initApp();
 
   // ---- Drive API fetch ヘルパー ----
   async function driveGet(path, params = {}) {
@@ -730,10 +719,20 @@
   }
 
   // ---- サインイン・アウト ----
-  window.handleSignIn = () => tokenClient.requestAccessToken();
+  window.handleSignIn = () => {
+    const authUrl = 'https://accounts.google.com/o/oauth2/v2/auth' +
+      '?client_id=' + encodeURIComponent(CLIENT_ID) +
+      '&redirect_uri=' + encodeURIComponent(REDIRECT_URI) +
+      '&response_type=token' +
+      '&scope=' + encodeURIComponent(SCOPES) +
+      '&prompt=consent';
+    window.location.href = authUrl;
+  };
   window.handleSignOut = () => {
     if (!confirm('サインアウトしますか？')) return;
-    if (accessToken) google.accounts.oauth2.revoke(accessToken, () => {});
+    if (accessToken) {
+      try { google.accounts.oauth2.revoke(accessToken, () => {}); } catch(e) {}
+    }
     accessToken = null;
     localStorage.removeItem('gtoken');
     localStorage.removeItem('driveFileId');
