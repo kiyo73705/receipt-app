@@ -1066,14 +1066,11 @@
       return;
     }
     const lines = [
-      '【領収書】',
-      `No: ${r.no || '-'}`,
-      `日付: ${fmtDate(r.date)}`,
-      `宛名: ${r.addressee || '-'}`,
-      `金額: ¥${parseInt(r.amount||0).toLocaleString()}`,
-      r.tadashi ? `但し: ${r.tadashi}` : '',
-      `支払: ${PAYMENT_LABELS[r.payment]||'現金'}`,
-      r.company ? `発行: ${r.company}` : '',
+      `No:${r.no||'-'}`,
+      r.date||'',
+      r.addressee||'',
+      `${parseInt(r.amount||0)}`,
+      r.company||'',
     ].filter(Boolean).join('\n');
 
     const wrapper = document.getElementById('qr-canvas-wrapper');
