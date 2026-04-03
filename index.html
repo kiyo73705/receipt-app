@@ -10,6 +10,7 @@
   <link rel="manifest" href="./manifest.json">
   <link rel="apple-touch-icon" href="./icon.svg">
   <title>領収書アプリ</title>
+  <script src="https://cdn.jsdelivr.net/npm/qrcode@1.5.3/build/qrcode.min.js"></script>
   <style>
     * { box-sizing: border-box; margin: 0; padding: 0; }
     body {
@@ -177,6 +178,60 @@
     .form-row textarea { text-align: left; resize: none; min-height: 44px; }
     .form-row input::placeholder, .form-row textarea::placeholder { color: #c7c7cc; }
 
+    /* 支払い方法 */
+    .payment-options {
+      display: flex; flex-wrap: wrap; gap: 8px;
+      padding: 12px 16px;
+    }
+    .payment-opt {
+      border: 1.5px solid #c7c7cc; border-radius: 20px;
+      padding: 6px 14px; font-size: 14px; cursor: pointer;
+      background: #fff; color: #3c3c3e;
+      transition: all 0.15s;
+    }
+    .payment-opt.selected {
+      border-color: #007aff; background: #007aff; color: #fff;
+    }
+
+    /* 明細テーブル */
+    .items-section {
+      background: #fff; border-radius: 12px;
+      overflow: hidden; box-shadow: 0 1px 3px rgba(0,0,0,0.08);
+      margin-bottom: 8px;
+    }
+    .items-header {
+      display: grid; grid-template-columns: 1fr 56px 80px 80px 36px;
+      padding: 8px 12px; background: #f2f2f7;
+      font-size: 11px; color: #8e8e93; font-weight: 600; gap: 4px;
+    }
+    .item-row {
+      display: grid; grid-template-columns: 1fr 56px 80px 80px 36px;
+      padding: 8px 12px; border-top: 1px solid #f2f2f7; gap: 4px;
+      align-items: center;
+    }
+    .item-row input {
+      border: none; outline: none; font-size: 14px; font-family: inherit;
+      background: transparent; color: #1c1c1e; width: 100%;
+    }
+    .item-row input[type="number"] { text-align: right; }
+    .item-row input::placeholder { color: #c7c7cc; }
+    .item-subtotal { font-size: 14px; text-align: right; color: #3c3c3e; }
+    .item-delete {
+      background: none; border: none; cursor: pointer;
+      color: #ff3b30; font-size: 18px; padding: 0; line-height: 1;
+    }
+    .items-total {
+      padding: 10px 16px; border-top: 1.5px solid #e5e5ea;
+      display: flex; justify-content: space-between; align-items: center;
+    }
+    .items-total-label { font-size: 14px; font-weight: 600; }
+    .items-total-value { font-size: 18px; font-weight: 700; color: #007aff; }
+    .add-item-btn {
+      width: 100%; background: none; border: none; cursor: pointer;
+      color: #007aff; font-size: 14px; padding: 12px;
+      text-align: center; border-top: 1px solid #f2f2f7;
+    }
+
     /* ボタン */
     .btn {
       display: block; width: 100%; padding: 15px;
@@ -214,7 +269,42 @@
       border-bottom: 2px solid #1c1c1e; padding: 4px 12px; flex: 1;
     }
     .receipt-tax-note { font-size: 11px; color: #555; margin-bottom: 16px; }
-    .receipt-tadashi { font-size: 13px; margin-bottom: 24px; line-height: 1.8; }
+    .receipt-tadashi { font-size: 13px; margin-bottom: 16px; line-height: 1.8; }
+
+    /* 明細テーブル（プレビュー） */
+    .preview-items-table {
+      width: 100%; border-collapse: collapse;
+      font-size: 12px; margin-bottom: 16px;
+    }
+    .preview-items-table th {
+      background: #f5f5f5; padding: 5px 8px;
+      border: 1px solid #ddd; font-weight: 600; text-align: center;
+    }
+    .preview-items-table td {
+      padding: 5px 8px; border: 1px solid #ddd;
+    }
+    .preview-items-table td:nth-child(2),
+    .preview-items-table td:nth-child(3),
+    .preview-items-table td:nth-child(4) { text-align: right; }
+    .preview-items-subtotal {
+      font-size: 12px; text-align: right;
+      padding: 4px 0; color: #555;
+    }
+
+    /* 支払い方法（プレビュー） */
+    .receipt-payment {
+      font-size: 12px; color: #555; margin-bottom: 16px;
+      border: 1px solid #ddd; padding: 6px 10px; border-radius: 4px;
+      display: inline-block;
+    }
+
+    /* QRコード */
+    .qr-section {
+      margin-top: 16px; border-top: 1px solid #ccc; padding-top: 12px;
+      display: flex; gap: 12px; align-items: flex-start;
+    }
+    .qr-label { font-size: 10px; color: #888; margin-top: 4px; text-align: center; }
+
     .receipt-issuer { border-top: 1px solid #ccc; padding-top: 16px; }
     .receipt-issuer-name { font-size: 16px; font-weight: bold; margin-bottom: 4px; }
     .receipt-issuer-detail { font-size: 12px; color: #444; line-height: 1.7; }
@@ -349,12 +439,32 @@
           </div>
         </div>
       </div>
+
+      <!-- 明細 -->
       <div class="form-section">
-        <div class="form-section-title">金額・品目</div>
+        <div class="form-section-title">明細（任意）</div>
+        <div class="items-section">
+          <div class="items-header">
+            <span>品目</span><span style="text-align:center">数量</span>
+            <span style="text-align:right">単価</span>
+            <span style="text-align:right">小計</span>
+            <span></span>
+          </div>
+          <div id="items-body"></div>
+          <button class="add-item-btn" onclick="addItemRow()">＋ 明細を追加</button>
+          <div class="items-total">
+            <span class="items-total-label">合計（税込）</span>
+            <span class="items-total-value" id="items-total-display">¥0</span>
+          </div>
+        </div>
+      </div>
+
+      <div class="form-section">
+        <div class="form-section-title">金額・税区分</div>
         <div class="form-group">
           <div class="form-row">
-            <label class="form-label">金額（円）</label>
-            <input type="number" id="f-amount" placeholder="10000" inputmode="numeric">
+            <label class="form-label">合計金額（円）</label>
+            <input type="number" id="f-amount" placeholder="明細から自動計算" inputmode="numeric">
           </div>
           <div class="form-row">
             <label class="form-label">税区分</label>
@@ -370,6 +480,21 @@
           </div>
         </div>
       </div>
+
+      <!-- 支払い方法 -->
+      <div class="form-section">
+        <div class="form-section-title">支払い方法</div>
+        <div class="form-group">
+          <div class="payment-options" id="payment-options">
+            <button class="payment-opt selected" data-val="cash" onclick="selectPayment(this)">現金</button>
+            <button class="payment-opt" data-val="transfer" onclick="selectPayment(this)">振込</button>
+            <button class="payment-opt" data-val="partial_points" onclick="selectPayment(this)">一部ポイント</button>
+            <button class="payment-opt" data-val="all_points" onclick="selectPayment(this)">全てポイント</button>
+            <button class="payment-opt" data-val="other" onclick="selectPayment(this)">その他</button>
+          </div>
+        </div>
+      </div>
+
       <div class="form-section">
         <div class="form-section-title">発行者情報</div>
         <div class="form-group">
@@ -485,27 +610,29 @@
 <script src="https://accounts.google.com/gsi/client" onload="onGisLoad()"></script>
 
 <script>
-  // ============================================================
-  // Google Cloud Console で取得した値をここに設定してください
-  // ============================================================
   const CLIENT_ID  = '473681624619-ma9d1qrpplectu57uq1s2pism8b2vlq9.apps.googleusercontent.com';
   const API_KEY    = 'AIzaSyBi8BN8kNs7RNqvr9X5yEHdP_gpHPBKG5M';
-  // ============================================================
 
   const SCOPES      = 'https://www.googleapis.com/auth/drive.file';
   const FILE_NAME   = 'receipt-data.json';
   const DISCOVERY   = 'https://www.googleapis.com/discovery/v1/apis/drive/v3/rest';
+
+  const PAYMENT_LABELS = {
+    cash: '現金', transfer: '振込',
+    partial_points: '一部ポイント', all_points: '全てポイント', other: 'その他'
+  };
 
   let tokenClient;
   let gapiReady = false;
   let gisReady  = false;
   let fileId    = null;
 
-  // アプリ内データ（全件 in memory）
   let data = { version: 1, settings: {}, counter: 0, receipts: [] };
-
   let currentEditId    = null;
   let currentPreviewId = null;
+
+  // 明細行の管理
+  let itemRows = [];
 
   // ---- ユーティリティ ----
   function esc(str) {
@@ -539,7 +666,6 @@
   // ---- Google API 初期化 ----
   function onGapiLoad() {
     gapi.load('client', async () => {
-      // API キーが未設定なら設定画面を表示
       if (API_KEY === 'REPLACE_YOUR_API_KEY' || CLIENT_ID === 'REPLACE_YOUR_CLIENT_ID') {
         showError('Google APIキーとクライアントIDを設定してください。', 'index.html の CLIENT_ID と API_KEY を更新してください。');
         return;
@@ -564,7 +690,6 @@
   }
   function maybeInitApp() {
     if (!gapiReady || !gisReady) return;
-    // 既存トークンがあれば自動サインイン
     const cached = localStorage.getItem('gtoken');
     if (cached) {
       gapi.client.setToken({ access_token: cached });
@@ -595,25 +720,19 @@
   };
 
   async function afterSignIn() {
-    // トークンをキャッシュ
     const token = gapi.client.getToken();
     if (token) localStorage.setItem('gtoken', token.access_token);
-
-    // ユーザー情報取得
     let userInfo = null;
     try {
       const res = await gapi.client.request({ path: 'https://www.googleapis.com/oauth2/v3/userinfo' });
       userInfo = res.result;
     } catch(e) {}
-
-    // Google Driveからデータ読み込み
     await loadFromDrive();
     showApp(userInfo);
   }
 
   // ---- Google Drive CRUD ----
   async function loadFromDrive() {
-    // キャッシュされたファイルIDを確認
     const cached = localStorage.getItem('driveFileId');
     if (cached) {
       try {
@@ -621,11 +740,9 @@
         if (res.result.id) { fileId = cached; await readFile(); return; }
       } catch(e) { localStorage.removeItem('driveFileId'); }
     }
-    // ファイル検索
     const res = await gapi.client.drive.files.list({
       q: `name='${FILE_NAME}' and trashed=false`,
-      fields: 'files(id,name)',
-      spaces: 'drive',
+      fields: 'files(id,name)', spaces: 'drive',
     });
     const files = res.result.files;
     if (files && files.length > 0) {
@@ -633,7 +750,6 @@
       localStorage.setItem('driveFileId', fileId);
       await readFile();
     } else {
-      // 新規作成
       await writeFile();
     }
   }
@@ -652,7 +768,6 @@
     const content = JSON.stringify(data, null, 2);
     try {
       if (fileId) {
-        // 上書き更新
         await gapi.client.request({
           path: `https://www.googleapis.com/upload/drive/v3/files/${fileId}`,
           method: 'PATCH',
@@ -661,7 +776,6 @@
           body: content,
         });
       } else {
-        // 新規作成（multipart）
         const boundary = 'receipt_app_boundary_xyz';
         const meta = JSON.stringify({ name: FILE_NAME, mimeType: 'application/json' });
         const body = `--${boundary}\r\nContent-Type: application/json; charset=UTF-8\r\n\r\n${meta}\r\n--${boundary}\r\nContent-Type: application/json; charset=UTF-8\r\n\r\n${content}\r\n--${boundary}--`;
@@ -753,11 +867,72 @@
         <div class="receipt-item" onclick="showPreviewById('${esc(r.id)}')">
           <div class="receipt-item-left">
             <div class="receipt-item-title">${esc(r.addressee || '(宛名なし)')} 御中</div>
-            <div class="receipt-item-sub">${fmtDate(r.date)}　No.${esc(r.no || '-')}</div>
+            <div class="receipt-item-sub">${fmtDate(r.date)}　No.${esc(r.no || '-')}　${PAYMENT_LABELS[r.payment]||'現金'}</div>
           </div>
           <div class="receipt-item-amount">${fmtAmt(r.amount)}</div>
         </div>
       </div>`).join('');
+  }
+
+  // ---- 明細管理 ----
+  function renderItemRows() {
+    const body = document.getElementById('items-body');
+    body.innerHTML = itemRows.map((row, i) => `
+      <div class="item-row" id="item-row-${i}">
+        <input type="text" placeholder="品目名" value="${esc(row.name)}"
+          oninput="itemRows[${i}].name=this.value">
+        <input type="number" placeholder="1" min="1" value="${row.qty||1}" inputmode="numeric"
+          oninput="itemRows[${i}].qty=parseInt(this.value)||1; calcItemTotal(${i})">
+        <input type="number" placeholder="0" min="0" value="${row.price||''}" inputmode="numeric"
+          oninput="itemRows[${i}].price=parseInt(this.value)||0; calcItemTotal(${i})">
+        <span class="item-subtotal" id="subtotal-${i}">${fmtAmt((row.qty||1)*(row.price||0))}</span>
+        <button class="item-delete" onclick="removeItemRow(${i})">×</button>
+      </div>`).join('');
+    updateItemsTotal();
+  }
+
+  function calcItemTotal(i) {
+    const row = itemRows[i];
+    const sub = (row.qty||1) * (row.price||0);
+    row.subtotal = sub;
+    const el = document.getElementById(`subtotal-${i}`);
+    if (el) el.textContent = fmtAmt(sub);
+    updateItemsTotal();
+  }
+
+  function updateItemsTotal() {
+    const total = itemRows.reduce((s,r) => s + (r.qty||1)*(r.price||0), 0);
+    document.getElementById('items-total-display').textContent = fmtAmt(total);
+    if (itemRows.length > 0) {
+      // 明細があれば金額フィールドに自動反映
+      const amtField = document.getElementById('f-amount');
+      if (amtField) amtField.value = total;
+    }
+  }
+
+  window.addItemRow = () => {
+    itemRows.push({ name: '', qty: 1, price: 0, subtotal: 0 });
+    renderItemRows();
+  };
+
+  window.removeItemRow = (i) => {
+    itemRows.splice(i, 1);
+    renderItemRows();
+  };
+
+  // ---- 支払い方法 ----
+  let selectedPayment = 'cash';
+  window.selectPayment = (btn) => {
+    document.querySelectorAll('.payment-opt').forEach(b => b.classList.remove('selected'));
+    btn.classList.add('selected');
+    selectedPayment = btn.dataset.val;
+  };
+
+  function setPaymentUI(val) {
+    selectedPayment = val || 'cash';
+    document.querySelectorAll('.payment-opt').forEach(b => {
+      b.classList.toggle('selected', b.dataset.val === selectedPayment);
+    });
   }
 
   // ---- 新規作成 ----
@@ -776,6 +951,9 @@
     document.getElementById('f-address').value = s.address || '';
     document.getElementById('f-tel').value = s.tel || '';
     document.getElementById('f-regno').value = s.regno || '';
+    itemRows = [];
+    renderItemRows();
+    setPaymentUI('cash');
     showScreen('form');
   };
 
@@ -796,6 +974,9 @@
     document.getElementById('f-address').value = r.address || '';
     document.getElementById('f-tel').value = r.tel || '';
     document.getElementById('f-regno').value = r.regno || '';
+    itemRows = (r.items || []).map(it => ({...it}));
+    renderItemRows();
+    setPaymentUI(r.payment || 'cash');
     showScreen('form');
   };
 
@@ -803,19 +984,24 @@
   window.saveReceipt = async () => {
     const id = currentEditId || Date.now().toString();
     const existing = (data.receipts||[]).find(x => x.id === id);
+    // 明細から金額を確定
+    const itemsTotal = itemRows.reduce((s,r) => s + (r.qty||1)*(r.price||0), 0);
+    const amount = itemRows.length > 0 ? itemsTotal : parseInt(document.getElementById('f-amount').value || 0);
     const r = {
       id,
       createdAt: existing ? existing.createdAt : Date.now(),
       date:      document.getElementById('f-date').value,
       no:        document.getElementById('f-no').value,
       addressee: document.getElementById('f-addressee').value,
-      amount:    document.getElementById('f-amount').value,
+      amount,
       tax:       document.getElementById('f-tax').value,
       tadashi:   document.getElementById('f-tadashi').value,
       company:   document.getElementById('f-company').value,
       address:   document.getElementById('f-address').value,
       tel:       document.getElementById('f-tel').value,
       regno:     document.getElementById('f-regno').value,
+      items:     itemRows.filter(it => it.name || it.price > 0).map(it => ({...it})),
+      payment:   selectedPayment,
     };
     if (currentEditId) {
       data.receipts = (data.receipts||[]).map(x => x.id === currentEditId ? r : x);
@@ -845,8 +1031,53 @@
     if (r) showPreview(r);
   };
 
+  function buildItemsTable(items) {
+    if (!items || items.length === 0) return '';
+    const rows = items.map(it => {
+      const sub = (it.qty||1) * (it.price||0);
+      return `<tr>
+        <td>${esc(it.name)}</td>
+        <td>${it.qty||1}</td>
+        <td>¥${(it.price||0).toLocaleString()}</td>
+        <td>¥${sub.toLocaleString()}</td>
+      </tr>`;
+    }).join('');
+    return `
+      <table class="preview-items-table">
+        <thead><tr><th>品目</th><th>数量</th><th>単価</th><th>小計</th></tr></thead>
+        <tbody>${rows}</tbody>
+      </table>`;
+  }
+
+  function generateQR(r) {
+    // QRコードに埋め込む内容（領収書の基本情報テキスト）
+    const lines = [
+      '【領収書】',
+      `No: ${r.no || '-'}`,
+      `日付: ${fmtDate(r.date)}`,
+      `宛名: ${r.addressee || '-'}`,
+      `金額: ¥${parseInt(r.amount||0).toLocaleString()}`,
+      r.tadashi ? `但し: ${r.tadashi}` : '',
+      `支払: ${PAYMENT_LABELS[r.payment]||'現金'}`,
+      r.company ? `発行: ${r.company}` : '',
+    ].filter(Boolean).join('\n');
+
+    const canvas = document.createElement('canvas');
+    try {
+      QRCode.toCanvas(canvas, lines, { width: 100, margin: 1 }, (err) => {
+        if (!err) {
+          const wrapper = document.getElementById('qr-canvas-wrapper');
+          if (wrapper) { wrapper.innerHTML = ''; wrapper.appendChild(canvas); }
+        }
+      });
+    } catch(e) {}
+  }
+
   function showPreview(r) {
     currentPreviewId = r.id;
+    const itemsHtml = buildItemsTable(r.items);
+    const paymentLabel = PAYMENT_LABELS[r.payment] || '現金';
+
     document.getElementById('receipt-preview-content').innerHTML = `
       <h1>領　収　書</h1>
       <div class="receipt-meta">No. ${esc(r.no||'-')}</div>
@@ -858,7 +1089,9 @@
         <span class="receipt-amount-value">￥${parseInt(r.amount||0).toLocaleString('ja-JP')} ー</span>
       </div>
       <div class="receipt-tax-note">${taxNote(r.tax, r.amount)}</div>
+      <div class="receipt-payment">支払方法: ${esc(paymentLabel)}</div>
       <div class="receipt-tadashi">但し、${esc(r.tadashi||'　　　　　')} として<br>上記正に領収いたしました。</div>
+      ${itemsHtml}
       <div class="receipt-issuer">
         <div class="receipt-issuer-name">${esc(r.company||'')}</div>
         <div class="receipt-issuer-detail">
@@ -866,8 +1099,20 @@
           ${r.tel     ? 'TEL: '+esc(r.tel)+'<br>' : ''}
           ${r.regno   ? '登録番号: '+esc(r.regno) : ''}
         </div>
+        <div class="qr-section">
+          <div>
+            <div id="qr-canvas-wrapper"></div>
+            <div class="qr-label">QRコード</div>
+          </div>
+          <div style="font-size:10px;color:#888;line-height:1.6;padding-top:4px">
+            スキャンすると<br>この領収書の<br>内容を確認<br>できます
+          </div>
+        </div>
       </div>`;
+
     showScreen('preview');
+    // QRコード生成（描画後に実行）
+    setTimeout(() => generateQR(r), 100);
   }
 
   // ---- 設定 ----
