@@ -664,6 +664,25 @@
   // ---- Google Identity Services 初期化（ポーリング方式）----
   function onGisLoad() { /* onload属性用のダミー - initGIS()が実体 */ }
 
+  // リダイレクトコールバック: URLハッシュからトークンを取得
+  function handleRedirectCallback() {
+    const hash = window.location.hash;
+    if (!hash.includes('access_token=')) return false;
+    const params = new URLSearchParams(hash.substring(1));
+    const token = params.get('access_token');
+    if (!token) return false;
+    accessToken = token;
+    localStorage.setItem('gtoken', token);
+    // URLハッシュをクリア
+    history.replaceState(null, '', window.location.pathname + window.location.search);
+    afterSignIn().catch(() => {
+      accessToken = null;
+      localStorage.removeItem('gtoken');
+      showSignin();
+    });
+    return true;
+  }
+
   function initGIS() {
     if (typeof google === 'undefined' || !google.accounts || !google.accounts.oauth2) {
       setTimeout(initGIS, 100);
@@ -672,13 +691,11 @@
     tokenClient = google.accounts.oauth2.initTokenClient({
       client_id: CLIENT_ID,
       scope: SCOPES,
-      callback: async (resp) => {
-        if (resp.error) { showError('サインインに失敗しました', resp.error); return; }
-        accessToken = resp.access_token;
-        localStorage.setItem('gtoken', accessToken);
-        await afterSignIn();
-      },
+      ux_mode: 'redirect',
+      redirect_uri: window.location.origin + window.location.pathname,
     });
+    // リダイレクトコールバックをチェック
+    if (handleRedirectCallback()) return;
     const cached = localStorage.getItem('gtoken');
     if (cached) {
       accessToken = cached;
@@ -713,7 +730,7 @@
   }
 
   // ---- サインイン・アウト ----
-  window.handleSignIn = () => tokenClient.requestAccessToken({ prompt: '' });
+  window.handleSignIn = () => tokenClient.requestAccessToken();
   window.handleSignOut = () => {
     if (!confirm('サインアウトしますか？')) return;
     if (accessToken) google.accounts.oauth2.revoke(accessToken, () => {});
