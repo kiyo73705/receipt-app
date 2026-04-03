@@ -535,7 +535,7 @@
       <div class="preview-wrapper" id="print-area">
         <div class="receipt-preview" id="receipt-preview-content"></div>
       </div>
-      <button class="btn btn-primary" onclick="window.print()">印刷 / PDF保存</button>
+      <button class="btn btn-primary" onclick="printReceipt()">印刷 / PDF保存</button>
       <button class="btn btn-secondary" onclick="editCurrentReceipt()">編集する</button>
     </div>
   </div>
@@ -1061,6 +1061,10 @@
   }
 
   function generateQR(r) {
+    if (typeof QRCode === 'undefined') {
+      console.warn('QRCode library not loaded');
+      return;
+    }
     const lines = [
       '【領収書】',
       `No: ${r.no || '-'}`,
@@ -1076,20 +1080,35 @@
     if (!wrapper) return;
     wrapper.innerHTML = '';
     try {
-      new QRCode(wrapper, { text: lines, width: 100, height: 100, correctLevel: QRCode.CorrectLevel.M });
-      // 印刷用にcanvasをimgへ変換（canvasは印刷時に空白になるブラウザ対策）
+      new QRCode(wrapper, { text: lines, width: 100, height: 100, correctLevel: QRCode.CorrectLevel.L });
+      // 印刷用にcanvasをimgへ変換
       setTimeout(() => {
         const canvas = wrapper.querySelector('canvas');
         const img = wrapper.querySelector('img');
         if (canvas && img) {
-          img.src = canvas.toDataURL('image/png');
+          try { img.src = canvas.toDataURL('image/png'); } catch(e) {}
         }
       }, 500);
     } catch(e) { console.warn('QR error', e); }
   }
 
+  // PDF印刷（ファイル名を 領収書_日付_番号 にする）
+  let currentPreviewReceipt = null;
+  window.printReceipt = () => {
+    const r = currentPreviewReceipt;
+    const origTitle = document.title;
+    if (r) {
+      const dateStr = (r.date || '').replace(/-/g, '');
+      const noStr = (r.no || '').replace(/[\/\\:*?"<>|]/g, '_');
+      document.title = `領収書_${dateStr}_${noStr}`;
+    }
+    window.print();
+    setTimeout(() => { document.title = origTitle; }, 1000);
+  };
+
   function showPreview(r) {
     currentPreviewId = r.id;
+    currentPreviewReceipt = r;
     const itemsHtml = buildItemsTable(r.items);
     const paymentLabel = PAYMENT_LABELS[r.payment] || '現金';
 
