@@ -10,7 +10,7 @@
   <link rel="manifest" href="./manifest.json">
   <link rel="apple-touch-icon" href="./icon.svg">
   <title>領収書アプリ</title>
-  <script src="https://cdn.jsdelivr.net/npm/qrcode@1.5.3/build/qrcode.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
   <style>
     * { box-sizing: border-box; margin: 0; padding: 0; }
     body {
@@ -671,14 +671,12 @@
   function onGapiLoad() {
     gapi.load('client', async () => {
       try {
-        // discoveryDocs はここで指定せず、後で個別ロード
+        // discoveryDocs なしで初期化（APIキー制限との競合を回避）
+        // Drive API は gapi.client.request() で直接呼ぶため不要
         await gapi.client.init({ apiKey: API_KEY });
-        // Drive API v3 をロード
-        await gapi.client.load('https://www.googleapis.com/discovery/v1/apis/drive/v3/rest');
         gapiReady = true;
         maybeInitApp();
       } catch(e) {
-        // init失敗時はサインイン画面を表示
         console.error('GAPI init error:', e);
         showSignin();
       }
@@ -750,13 +748,16 @@
     const cached = localStorage.getItem('driveFileId');
     if (cached) {
       try {
-        const res = await gapi.client.drive.files.get({ fileId: cached, fields: 'id' });
+        const res = await gapi.client.request({
+          path: `https://www.googleapis.com/drive/v3/files/${cached}`,
+          params: { fields: 'id' },
+        });
         if (res.result.id) { fileId = cached; await readFile(); return; }
       } catch(e) { localStorage.removeItem('driveFileId'); }
     }
-    const res = await gapi.client.drive.files.list({
-      q: `name='${FILE_NAME}' and trashed=false`,
-      fields: 'files(id,name)', spaces: 'drive',
+    const res = await gapi.client.request({
+      path: 'https://www.googleapis.com/drive/v3/files',
+      params: { q: `name='${FILE_NAME}' and trashed=false`, fields: 'files(id,name)', spaces: 'drive' },
     });
     const files = res.result.files;
     if (files && files.length > 0) {
@@ -1064,7 +1065,6 @@
   }
 
   function generateQR(r) {
-    // QRコードに埋め込む内容（領収書の基本情報テキスト）
     const lines = [
       '【領収書】',
       `No: ${r.no || '-'}`,
@@ -1076,15 +1076,12 @@
       r.company ? `発行: ${r.company}` : '',
     ].filter(Boolean).join('\n');
 
-    const canvas = document.createElement('canvas');
+    const wrapper = document.getElementById('qr-canvas-wrapper');
+    if (!wrapper) return;
+    wrapper.innerHTML = '';
     try {
-      QRCode.toCanvas(canvas, lines, { width: 100, margin: 1 }, (err) => {
-        if (!err) {
-          const wrapper = document.getElementById('qr-canvas-wrapper');
-          if (wrapper) { wrapper.innerHTML = ''; wrapper.appendChild(canvas); }
-        }
-      });
-    } catch(e) {}
+      new QRCode(wrapper, { text: lines, width: 100, height: 100, correctLevel: QRCode.CorrectLevel.M });
+    } catch(e) { console.warn('QR error', e); }
   }
 
   function showPreview(r) {
