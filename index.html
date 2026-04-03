@@ -613,9 +613,8 @@
   const CLIENT_ID  = '473681624619-ma9d1qrpplectu57uq1s2pism8b2vlq9.apps.googleusercontent.com';
   const API_KEY    = 'AIzaSyBi8BN8kNs7RNqvr9X5yEHdP_gpHPBKG5M';
 
-  const SCOPES      = 'https://www.googleapis.com/auth/drive.file';
-  const FILE_NAME   = 'receipt-data.json';
-  const DISCOVERY   = 'https://www.googleapis.com/discovery/v1/apis/drive/v3/rest';
+  const SCOPES    = 'https://www.googleapis.com/auth/drive.file';
+  const FILE_NAME = 'receipt-data.json';
 
   const PAYMENT_LABELS = {
     cash: '現金', transfer: '振込',
@@ -626,6 +625,11 @@
   let gapiReady = false;
   let gisReady  = false;
   let fileId    = null;
+
+  // 15秒でタイムアウトしてサインイン画面を表示
+  const initTimeout = setTimeout(() => {
+    if (!gapiReady || !gisReady) showSignin();
+  }, 15000);
 
   let data = { version: 1, settings: {}, counter: 0, receipts: [] };
   let currentEditId    = null;
@@ -666,30 +670,40 @@
   // ---- Google API 初期化 ----
   function onGapiLoad() {
     gapi.load('client', async () => {
-      if (API_KEY === 'REPLACE_YOUR_API_KEY' || CLIENT_ID === 'REPLACE_YOUR_CLIENT_ID') {
-        showError('Google APIキーとクライアントIDを設定してください。', 'index.html の CLIENT_ID と API_KEY を更新してください。');
-        return;
+      try {
+        // discoveryDocs はここで指定せず、後で個別ロード
+        await gapi.client.init({ apiKey: API_KEY });
+        // Drive API v3 をロード
+        await gapi.client.load('https://www.googleapis.com/discovery/v1/apis/drive/v3/rest');
+        gapiReady = true;
+        maybeInitApp();
+      } catch(e) {
+        // init失敗時はサインイン画面を表示
+        console.error('GAPI init error:', e);
+        showSignin();
       }
-      await gapi.client.init({ apiKey: API_KEY, discoveryDocs: [DISCOVERY] });
-      gapiReady = true;
-      maybeInitApp();
     });
   }
   function onGisLoad() {
-    if (CLIENT_ID === 'REPLACE_YOUR_CLIENT_ID') return;
-    tokenClient = google.accounts.oauth2.initTokenClient({
-      client_id: CLIENT_ID,
-      scope: SCOPES,
-      callback: async (resp) => {
-        if (resp.error) { showError('サインインに失敗しました', resp.error); return; }
-        await afterSignIn();
-      },
-    });
-    gisReady = true;
-    maybeInitApp();
+    try {
+      tokenClient = google.accounts.oauth2.initTokenClient({
+        client_id: CLIENT_ID,
+        scope: SCOPES,
+        callback: async (resp) => {
+          if (resp.error) { showError('サインインに失敗しました', resp.error); return; }
+          await afterSignIn();
+        },
+      });
+      gisReady = true;
+      maybeInitApp();
+    } catch(e) {
+      console.error('GIS init error:', e);
+      showSignin();
+    }
   }
   function maybeInitApp() {
     if (!gapiReady || !gisReady) return;
+    clearTimeout(initTimeout);
     const cached = localStorage.getItem('gtoken');
     if (cached) {
       gapi.client.setToken({ access_token: cached });
