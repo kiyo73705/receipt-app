@@ -1068,7 +1068,7 @@
         if (canvas && img) {
           img.src = canvas.toDataURL('image/png');
         }
-      }, 200);
+      }, 500);
     } catch(e) { console.warn('QR error', e); }
   }
 
@@ -1111,7 +1111,7 @@
 
     showScreen('preview');
     // QRコード生成（描画後に実行）
-    setTimeout(() => generateQR(r), 100);
+    setTimeout(() => generateQR(r), 300);
   }
 
   // ---- 設定 ----
