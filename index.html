@@ -605,8 +605,7 @@
   </div>
 </div>
 
-<!-- Google APIs -->
-<script src="https://apis.google.com/js/api.js" onload="onGapiLoad()"></script>
+<!-- Google Identity Services のみ（GAPI不要）-->
 <script src="https://accounts.google.com/gsi/client" onload="onGisLoad()"></script>
 
 <script>
@@ -622,14 +621,8 @@
   };
 
   let tokenClient;
-  let gapiReady = false;
-  let gisReady  = false;
-  let fileId    = null;
-
-  // 15秒でタイムアウトしてサインイン画面を表示
-  const initTimeout = setTimeout(() => {
-    if (!gapiReady || !gisReady) showSignin();
-  }, 15000);
+  let accessToken = null;   // OAuth アクセストークン（gapiの代わりに直接管理）
+  let fileId      = null;
 
   let data = { version: 1, settings: {}, counter: 0, receipts: [] };
   let currentEditId    = null;
@@ -667,45 +660,24 @@
     else { dot.className='sync-dot'; txt.textContent = msg || 'Google Driveに保存済み'; }
   }
 
-  // ---- Google API 初期化 ----
-  function onGapiLoad() {
-    gapi.load('client', async () => {
-      try {
-        // discoveryDocs なしで初期化（APIキー制限との競合を回避）
-        // Drive API は gapi.client.request() で直接呼ぶため不要
-        await gapi.client.init({ apiKey: API_KEY });
-        gapiReady = true;
-        maybeInitApp();
-      } catch(e) {
-        console.error('GAPI init error:', e);
-        showSignin();
-      }
-    });
-  }
+  // ---- Google Identity Services 初期化 ----
   function onGisLoad() {
-    try {
-      tokenClient = google.accounts.oauth2.initTokenClient({
-        client_id: CLIENT_ID,
-        scope: SCOPES,
-        callback: async (resp) => {
-          if (resp.error) { showError('サインインに失敗しました', resp.error); return; }
-          await afterSignIn();
-        },
-      });
-      gisReady = true;
-      maybeInitApp();
-    } catch(e) {
-      console.error('GIS init error:', e);
-      showSignin();
-    }
-  }
-  function maybeInitApp() {
-    if (!gapiReady || !gisReady) return;
-    clearTimeout(initTimeout);
+    tokenClient = google.accounts.oauth2.initTokenClient({
+      client_id: CLIENT_ID,
+      scope: SCOPES,
+      callback: async (resp) => {
+        if (resp.error) { showError('サインインに失敗しました', resp.error); return; }
+        accessToken = resp.access_token;
+        localStorage.setItem('gtoken', accessToken);
+        await afterSignIn();
+      },
+    });
+    // キャッシュ済みトークンで自動サインイン試行
     const cached = localStorage.getItem('gtoken');
     if (cached) {
-      gapi.client.setToken({ access_token: cached });
+      accessToken = cached;
       afterSignIn().catch(() => {
+        accessToken = null;
         localStorage.removeItem('gtoken');
         showSignin();
       });
@@ -714,16 +686,30 @@
     }
   }
 
+  // ---- Drive API fetch ヘルパー ----
+  async function driveGet(path, params = {}) {
+    const url = new URL(path);
+    Object.entries(params).forEach(([k, v]) => url.searchParams.set(k, v));
+    const r = await fetch(url, { headers: { Authorization: `Bearer ${accessToken}` } });
+    if (!r.ok) throw new Error(r.status);
+    return r;
+  }
+  async function driveRequest(method, path, params = {}, body = null, contentType = 'application/json') {
+    const url = new URL(path);
+    Object.entries(params).forEach(([k, v]) => url.searchParams.set(k, v));
+    const headers = { Authorization: `Bearer ${accessToken}` };
+    if (body !== null) headers['Content-Type'] = contentType;
+    const r = await fetch(url, { method, headers, body });
+    if (!r.ok) throw new Error(r.status);
+    return r.json();
+  }
+
   // ---- サインイン・アウト ----
-  window.handleSignIn = () => {
-    if (!tokenClient) return;
-    tokenClient.requestAccessToken({ prompt: 'consent' });
-  };
+  window.handleSignIn = () => tokenClient.requestAccessToken({ prompt: '' });
   window.handleSignOut = () => {
     if (!confirm('サインアウトしますか？')) return;
-    const token = gapi.client.getToken();
-    if (token) google.accounts.oauth2.revoke(token.access_token, ()=>{});
-    gapi.client.setToken(null);
+    if (accessToken) google.accounts.oauth2.revoke(accessToken, () => {});
+    accessToken = null;
     localStorage.removeItem('gtoken');
     localStorage.removeItem('driveFileId');
     fileId = null;
@@ -732,12 +718,11 @@
   };
 
   async function afterSignIn() {
-    const token = gapi.client.getToken();
-    if (token) localStorage.setItem('gtoken', token.access_token);
     let userInfo = null;
     try {
-      const res = await gapi.client.request({ path: 'https://www.googleapis.com/oauth2/v3/userinfo' });
-      userInfo = res.result;
+      const r = await fetch('https://www.googleapis.com/oauth2/v3/userinfo',
+        { headers: { Authorization: `Bearer ${accessToken}` } });
+      userInfo = await r.json();
     } catch(e) {}
     await loadFromDrive();
     showApp(userInfo);
@@ -748,18 +733,16 @@
     const cached = localStorage.getItem('driveFileId');
     if (cached) {
       try {
-        const res = await gapi.client.request({
-          path: `https://www.googleapis.com/drive/v3/files/${cached}`,
-          params: { fields: 'id' },
-        });
-        if (res.result.id) { fileId = cached; await readFile(); return; }
+        const r = await driveGet(`https://www.googleapis.com/drive/v3/files/${cached}`, { fields: 'id' });
+        const d = await r.json();
+        if (d.id) { fileId = cached; await readFile(); return; }
       } catch(e) { localStorage.removeItem('driveFileId'); }
     }
-    const res = await gapi.client.request({
-      path: 'https://www.googleapis.com/drive/v3/files',
-      params: { q: `name='${FILE_NAME}' and trashed=false`, fields: 'files(id,name)', spaces: 'drive' },
+    const r = await driveGet('https://www.googleapis.com/drive/v3/files', {
+      q: `name='${FILE_NAME}' and trashed=false`, fields: 'files(id,name)', spaces: 'drive',
     });
-    const files = res.result.files;
+    const d = await r.json();
+    const files = d.files;
     if (files && files.length > 0) {
       fileId = files[0].id;
       localStorage.setItem('driveFileId', fileId);
@@ -770,11 +753,8 @@
   }
 
   async function readFile() {
-    const res = await gapi.client.request({
-      path: `https://www.googleapis.com/drive/v3/files/${fileId}`,
-      params: { alt: 'media' },
-    });
-    try { data = JSON.parse(res.body); }
+    const r = await driveGet(`https://www.googleapis.com/drive/v3/files/${fileId}`, { alt: 'media' });
+    try { data = await r.json(); }
     catch(e) { data = { version:1, settings:{}, counter:0, receipts:[] }; }
   }
 
@@ -783,25 +763,17 @@
     const content = JSON.stringify(data, null, 2);
     try {
       if (fileId) {
-        await gapi.client.request({
-          path: `https://www.googleapis.com/upload/drive/v3/files/${fileId}`,
-          method: 'PATCH',
-          params: { uploadType: 'media' },
-          headers: { 'Content-Type': 'application/json; charset=UTF-8' },
-          body: content,
-        });
+        await driveRequest('PATCH',
+          `https://www.googleapis.com/upload/drive/v3/files/${fileId}`,
+          { uploadType: 'media' }, content, 'application/json; charset=UTF-8');
       } else {
-        const boundary = 'receipt_app_boundary_xyz';
+        const boundary = 'receipt_boundary';
         const meta = JSON.stringify({ name: FILE_NAME, mimeType: 'application/json' });
         const body = `--${boundary}\r\nContent-Type: application/json; charset=UTF-8\r\n\r\n${meta}\r\n--${boundary}\r\nContent-Type: application/json; charset=UTF-8\r\n\r\n${content}\r\n--${boundary}--`;
-        const res = await gapi.client.request({
-          path: 'https://www.googleapis.com/upload/drive/v3/files',
-          method: 'POST',
-          params: { uploadType: 'multipart' },
-          headers: { 'Content-Type': `multipart/related; boundary=${boundary}` },
-          body,
-        });
-        fileId = res.result.id;
+        const d = await driveRequest('POST',
+          'https://www.googleapis.com/upload/drive/v3/files',
+          { uploadType: 'multipart' }, body, `multipart/related; boundary=${boundary}`);
+        fileId = d.id;
         localStorage.setItem('driveFileId', fileId);
       }
       setSyncing('ok');
