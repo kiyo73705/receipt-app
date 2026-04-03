@@ -338,12 +338,16 @@
 
     /* 印刷 */
     @media print {
-      body > *:not(#print-area) { display: none !important; }
-      #print-area {
-        display: block !important; position: fixed; inset: 0;
-        padding: 15mm; background: white;
-      }
+      body { background: white !important; }
+      .screen { display: none !important; }
+      #screen-preview { display: block !important; }
+      .nav, .tab-bar, .btn-primary, .btn-secondary { display: none !important; }
+      .content { padding: 0 !important; }
+      .preview-wrapper { box-shadow: none !important; margin: 0 !important; padding: 0 !important; }
       .receipt-preview { border: 2px solid #000; }
+      /* canvas は印刷されないため img を使う */
+      #qr-canvas-wrapper canvas { display: none !important; }
+      #qr-canvas-wrapper img { display: block !important; }
     }
   </style>
 </head>
@@ -1057,6 +1061,14 @@
     wrapper.innerHTML = '';
     try {
       new QRCode(wrapper, { text: lines, width: 100, height: 100, correctLevel: QRCode.CorrectLevel.M });
+      // 印刷用にcanvasをimgへ変換（canvasは印刷時に空白になるブラウザ対策）
+      setTimeout(() => {
+        const canvas = wrapper.querySelector('canvas');
+        const img = wrapper.querySelector('img');
+        if (canvas && img) {
+          img.src = canvas.toDataURL('image/png');
+        }
+      }, 200);
     } catch(e) { console.warn('QR error', e); }
   }
 
