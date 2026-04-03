@@ -657,8 +657,14 @@
     else { dot.className='sync-dot'; txt.textContent = msg || 'Google Driveに保存済み'; }
   }
 
-  // ---- Google Identity Services 初期化 ----
-  function onGisLoad() {
+  // ---- Google Identity Services 初期化（ポーリング方式）----
+  function onGisLoad() { /* onload属性用のダミー - initGIS()が実体 */ }
+
+  function initGIS() {
+    if (typeof google === 'undefined' || !google.accounts || !google.accounts.oauth2) {
+      setTimeout(initGIS, 100);
+      return;
+    }
     tokenClient = google.accounts.oauth2.initTokenClient({
       client_id: CLIENT_ID,
       scope: SCOPES,
@@ -669,7 +675,6 @@
         await afterSignIn();
       },
     });
-    // キャッシュ済みトークンで自動サインイン試行
     const cached = localStorage.getItem('gtoken');
     if (cached) {
       accessToken = cached;
@@ -682,6 +687,8 @@
       showSignin();
     }
   }
+  // ページロード直後から GIS の準備完了を待つ
+  initGIS();
 
   // ---- Drive API fetch ヘルパー ----
   async function driveGet(path, params = {}) {
