@@ -698,7 +698,7 @@
   // ---- OAuth 初期化（GIS不要・手動リダイレクト方式）----
   function onGisLoad() { /* 未使用だが互換性のため残す */ }
 
-  const REDIRECT_URI = window.location.origin + window.location.pathname;
+  const REDIRECT_URI = window.location.origin + window.location.pathname.replace(/\/?$/, '/');
 
   // リダイレクトコールバック: URLハッシュからトークンを取得
   function handleRedirectCallback() {
