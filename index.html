@@ -358,9 +358,8 @@
       .content { padding: 0 !important; }
       .preview-wrapper { box-shadow: none !important; margin: 0 !important; padding: 0 !important; }
       .receipt-preview { border: 2px solid #000; }
-      /* canvas は印刷されないため img を使う */
-      #qr-canvas-wrapper canvas { display: none !important; }
-      #qr-canvas-wrapper img { display: block !important; }
+      /* PDF出力時はQRコードを非表示 */
+      .qr-section { display: none !important; }
     }
   </style>
 </head>
