@@ -311,13 +311,6 @@
       display: inline-block;
     }
 
-    /* QRコード */
-    .qr-section {
-      margin-top: 16px; border-top: 1px solid #ccc; padding-top: 12px;
-      display: flex; gap: 12px; align-items: flex-start;
-    }
-    .qr-label { font-size: 10px; color: #888; margin-top: 4px; text-align: center; }
-
     .receipt-issuer { border-top: 1px solid #ccc; padding-top: 16px; }
     .receipt-issuer-name { font-size: 16px; font-weight: bold; margin-bottom: 4px; }
     .receipt-issuer-detail { font-size: 12px; color: #444; line-height: 1.7; }
@@ -358,8 +351,6 @@
       .content { padding: 0 !important; }
       .preview-wrapper { box-shadow: none !important; margin: 0 !important; padding: 0 !important; }
       .receipt-preview { border: 2px solid #000; }
-      /* PDF出力時はQRコードを非表示 */
-      .qr-section { display: none !important; }
     }
   </style>
 </head>
@@ -1093,35 +1084,6 @@
       </table>`;
   }
 
-  function generateQR(r) {
-    if (typeof QRCode === 'undefined') {
-      console.warn('QRCode library not loaded');
-      return;
-    }
-    const lines = [
-      `No:${r.no||'-'}`,
-      r.date||'',
-      r.addressee||'',
-      `${parseInt(r.amount||0)}`,
-      r.company||'',
-    ].filter(Boolean).join('\n');
-
-    const wrapper = document.getElementById('qr-canvas-wrapper');
-    if (!wrapper) return;
-    wrapper.innerHTML = '';
-    try {
-      new QRCode(wrapper, { text: lines, width: 100, height: 100, correctLevel: QRCode.CorrectLevel.L });
-      // 印刷用にcanvasをimgへ変換
-      setTimeout(() => {
-        const canvas = wrapper.querySelector('canvas');
-        const img = wrapper.querySelector('img');
-        if (canvas && img) {
-          try { img.src = canvas.toDataURL('image/png'); } catch(e) {}
-        }
-      }, 500);
-    } catch(e) { console.warn('QR error', e); }
-  }
-
   // PDF出力（ファイル名を 領収書_日付_番号 にする）
   let currentPreviewReceipt = null;
   window.printReceipt = () => {
@@ -1216,20 +1178,9 @@
           ${r.tel     ? 'TEL: '+esc(r.tel)+'<br>' : ''}
           ${r.regno   ? '登録番号: '+esc(r.regno) : ''}
         </div>
-        <div class="qr-section">
-          <div>
-            <div id="qr-canvas-wrapper"></div>
-            <div class="qr-label">QRコード</div>
-          </div>
-          <div style="font-size:10px;color:#888;line-height:1.6;padding-top:4px">
-            スキャンすると<br>この領収書の<br>内容を確認<br>できます
-          </div>
-        </div>
       </div>`;
 
     showScreen('preview');
-    // QRコード生成（描画後に実行）
-    setTimeout(() => generateQR(r), 300);
   }
 
   // ---- 設定 ----
