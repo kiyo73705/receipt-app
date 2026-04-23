@@ -1220,8 +1220,13 @@
             ${r.regno   ? '登録番号: '+esc(r.regno) : ''}
           </div>
         </div>`;
-      // ローディング画面を隠して共有画面を表示
+      // ローディング画面・サインイン画面を隠してアプリを表示
       document.getElementById('loading-screen').style.display = 'none';
+      document.getElementById('signin-screen').style.display = 'none';
+      document.getElementById('error-screen').style.display = 'none';
+      document.getElementById('app').style.display = 'block';
+      // タブバーを非表示にする（共有画面では不要）
+      document.querySelector('.tab-bar').style.display = 'none';
       showScreen('shared');
       return true;
     } catch(e) {
