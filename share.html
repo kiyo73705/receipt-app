@@ -1,0 +1,215 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">
+  <title>領収書</title>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Hiragino Sans', 'Yu Gothic UI', sans-serif;
+      background: #f2f2f7; color: #1c1c1e; min-height: 100vh;
+    }
+    .nav {
+      background: #fff; border-bottom: 1px solid #e5e5ea;
+      padding: 12px 16px; padding-top: calc(12px + env(safe-area-inset-top));
+      display: flex; align-items: center; justify-content: center;
+      position: sticky; top: 0; z-index: 100;
+    }
+    .nav-title { font-size: 17px; font-weight: 600; }
+    .content { padding: 16px; padding-bottom: calc(32px + env(safe-area-inset-bottom)); }
+    .preview-wrapper {
+      background: #fff; border-radius: 12px;
+      padding: 20px; margin-bottom: 16px;
+      box-shadow: 0 1px 3px rgba(0,0,0,0.08);
+    }
+    .receipt-preview {
+      border: 2px solid #1c1c1e; padding: 24px 20px;
+      font-family: 'Hiragino Mincho ProN', 'Yu Mincho', Georgia, serif;
+    }
+    .receipt-preview h1 { text-align: center; font-size: 22px; letter-spacing: 8px; margin-bottom: 16px; }
+    .receipt-meta { text-align: right; font-size: 12px; margin-bottom: 2px; }
+    .receipt-date-text { text-align: right; font-size: 13px; margin-bottom: 20px; }
+    .receipt-addressee {
+      font-size: 20px; font-weight: bold;
+      border-bottom: 2px solid #1c1c1e;
+      padding-bottom: 4px; margin-bottom: 20px; display: inline-block;
+    }
+    .receipt-amount-row { display: flex; align-items: center; gap: 8px; margin-bottom: 6px; }
+    .receipt-amount-label { font-size: 14px; min-width: 36px; }
+    .receipt-amount-value {
+      font-size: 24px; font-weight: bold;
+      border-bottom: 2px solid #1c1c1e; padding: 4px 12px; flex: 1;
+    }
+    .receipt-tax-note { font-size: 11px; color: #555; margin-bottom: 16px; }
+    .receipt-tadashi { font-size: 13px; margin-bottom: 16px; line-height: 1.8; }
+    .preview-items-table {
+      width: 100%; border-collapse: collapse;
+      font-size: 12px; margin-bottom: 16px;
+    }
+    .preview-items-table th {
+      background: #f5f5f5; padding: 5px 8px;
+      border: 1px solid #ddd; font-weight: 600; text-align: center;
+    }
+    .preview-items-table td { padding: 5px 8px; border: 1px solid #ddd; }
+    .preview-items-table td:nth-child(2),
+    .preview-items-table td:nth-child(3),
+    .preview-items-table td:nth-child(4) { text-align: right; }
+    .receipt-payment {
+      font-size: 12px; color: #555; margin-bottom: 16px;
+      border: 1px solid #ddd; padding: 6px 10px; border-radius: 4px;
+      display: inline-block;
+    }
+    .receipt-issuer { border-top: 1px solid #ccc; padding-top: 16px; }
+    .receipt-issuer-name { font-size: 16px; font-weight: bold; margin-bottom: 4px; }
+    .receipt-issuer-detail { font-size: 12px; color: #444; line-height: 1.7; }
+    .btn {
+      display: block; width: 100%; padding: 14px; border: none;
+      border-radius: 12px; font-size: 16px; font-weight: 600;
+      cursor: pointer; text-align: center;
+    }
+    .btn-primary { background: #007aff; color: #fff; }
+    .btn-primary:active { opacity: 0.85; }
+    .note { text-align: center; margin-top: 16px; font-size: 12px; color: #888; }
+    .error-box {
+      text-align: center; padding: 60px 24px;
+    }
+    .error-icon { font-size: 48px; margin-bottom: 16px; }
+    .error-title { font-size: 18px; font-weight: 600; margin-bottom: 8px; }
+    .error-msg { font-size: 14px; color: #8e8e93; line-height: 1.6; }
+
+    @media print {
+      body { background: white !important; }
+      .nav, .btn, .note { display: none !important; }
+      .content { padding: 0 !important; }
+      .preview-wrapper { box-shadow: none !important; margin: 0 !important; padding: 0 !important; }
+      .receipt-preview { border: 2px solid #000; }
+    }
+  </style>
+</head>
+<body>
+  <div class="nav">
+    <span class="nav-title">領収書</span>
+  </div>
+  <div class="content">
+    <div id="receipt-area"></div>
+    <div id="error-area" style="display:none;">
+      <div class="error-box">
+        <div class="error-icon">⚠️</div>
+        <div class="error-title">領収書を表示できません</div>
+        <div class="error-msg">QRコードが正しく読み取れなかった可能性があります。<br>もう一度スキャンしてください。</div>
+      </div>
+    </div>
+  </div>
+
+<script>
+  // ---- ヘルパー関数 ----
+  function esc(str) {
+    return String(str||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+  }
+  function fmtDate(s) {
+    if (!s) return '';
+    const [y,m,d] = s.split('-');
+    return `${y}年${parseInt(m)}月${parseInt(d)}日`;
+  }
+  function taxNote(tax, amt) {
+    if (tax === 'included') return '（税込）';
+    if (tax === 'excluded') return `（税抜）消費税: ¥${Math.floor(parseInt(amt||0)*.1).toLocaleString()} 別途`;
+    return '';
+  }
+  function buildItemsTable(items) {
+    if (!items || items.length === 0) return '';
+    const rows = items.map(it => {
+      const sub = (it.qty||1) * (it.price||0);
+      return `<tr>
+        <td>${esc(it.name)}</td>
+        <td>${it.qty||1}</td>
+        <td>¥${(it.price||0).toLocaleString()}</td>
+        <td>¥${sub.toLocaleString()}</td>
+      </tr>`;
+    }).join('');
+    return `
+      <table class="preview-items-table">
+        <thead><tr><th>品目</th><th>数量</th><th>単価</th><th>小計</th></tr></thead>
+        <tbody>${rows}</tbody>
+      </table>`;
+  }
+  const PAYMENT_LABELS = {
+    cash: '現金', transfer: '振込',
+    partial_points: '一部ポイント', all_points: '全てポイント', other: 'その他'
+  };
+
+  // ---- 領収書データ読み込み・表示 ----
+  let receiptData = null;
+
+  function loadReceipt() {
+    const params = new URLSearchParams(window.location.search);
+    const rParam = params.get('r');
+    if (!rParam) return false;
+    try {
+      const json = decodeURIComponent(escape(atob(rParam)));
+      const s = JSON.parse(json);
+      receiptData = {
+        no: s.n||'', date: s.d||'', addressee: s.a||'',
+        amount: s.m||0, tax: s.t||'', payment: s.p||'cash',
+        tadashi: s.td||'', company: s.c||'',
+        address: s.ad||'', tel: s.te||'', regno: s.rg||'',
+        items: (s.i||[]).map(it => ({name:it.n||'',qty:it.q||1,price:it.p||0})),
+      };
+      const r = receiptData;
+      const itemsHtml = buildItemsTable(r.items);
+      const paymentLabel = PAYMENT_LABELS[r.payment] || '現金';
+      document.getElementById('receipt-area').innerHTML = `
+        <div class="preview-wrapper">
+          <div class="receipt-preview">
+            <h1>領　収　書</h1>
+            <div class="receipt-meta">No. ${esc(r.no||'-')}</div>
+            <div class="receipt-date-text">${fmtDate(r.date)}</div>
+            <div class="receipt-addressee">${esc(r.addressee||'　　　　　')}</div>
+            <div style="margin-bottom:16px"></div>
+            <div class="receipt-amount-row">
+              <span class="receipt-amount-label">金額</span>
+              <span class="receipt-amount-value">￥${parseInt(r.amount||0).toLocaleString('ja-JP')} ー</span>
+            </div>
+            <div class="receipt-tax-note">${taxNote(r.tax, r.amount)}</div>
+            <div class="receipt-payment">支払方法: ${esc(paymentLabel)}</div>
+            <div class="receipt-tadashi">但し、${esc(r.tadashi||'　　　　　')} として<br>上記正に領収いたしました。</div>
+            ${itemsHtml}
+            <div class="receipt-issuer">
+              <div class="receipt-issuer-name">${esc(r.company||'')}</div>
+              <div class="receipt-issuer-detail">
+                ${r.address ? esc(r.address)+'<br>' : ''}
+                ${r.tel     ? 'TEL: '+esc(r.tel)+'<br>' : ''}
+                ${r.regno   ? '登録番号: '+esc(r.regno) : ''}
+              </div>
+            </div>
+          </div>
+        </div>
+        <button class="btn btn-primary" onclick="printReceipt()">PDF出力</button>
+        <div class="note">この領収書はQRコードから表示されています</div>`;
+      return true;
+    } catch(e) {
+      console.error('領収書の読み込みに失敗:', e);
+      return false;
+    }
+  }
+
+  // ---- PDF出力 ----
+  function printReceipt() {
+    const r = receiptData;
+    const origTitle = document.title;
+    if (r) {
+      const d = r.date ? r.date.replace(/-/g,'') : '';
+      document.title = `領収書_${d}_${r.no||''}`;
+    }
+    window.print();
+    document.title = origTitle;
+  }
+
+  // ---- 初期化 ----
+  if (!loadReceipt()) {
+    document.getElementById('error-area').style.display = 'block';
+  }
+</script>
+</body>
+</html>

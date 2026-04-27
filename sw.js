@@ -1,4 +1,4 @@
-const CACHE_NAME = 'receipt-app-v18';
+const CACHE_NAME = 'receipt-app-v19';
 const ASSETS = [
   './',
   './index.html',
@@ -24,12 +24,9 @@ self.addEventListener('activate', e => {
 
 self.addEventListener('fetch', e => {
   const url = new URL(e.request.url);
-  // ?r= パラメータがある場合（共有領収書）は必ずネットワークから取得
-  // HTMLリクエストはネットワーク優先（最新コードを常に使用）
-  if (url.searchParams.has('r') || e.request.mode === 'navigate') {
-    e.respondWith(
-      fetch(e.request).catch(() => caches.match(e.request))
-    );
+  // share.html は常にネットワークから取得（キャッシュしない）
+  if (url.pathname.endsWith('/share.html')) {
+    e.respondWith(fetch(e.request));
     return;
   }
   e.respondWith(

@@ -10,20 +10,6 @@
   <link rel="manifest" href="./manifest.json">
   <link rel="apple-touch-icon" href="./icon.svg">
   <title>領収書アプリ</title>
-  <script>
-    // 共有URLかどうかのフラグ（早期検出）
-    window.__isSharedReceipt = new URLSearchParams(window.location.search).has('r');
-    // 共有URLの場合: SWを解除してキャッシュ問題を防ぐ
-    if (window.__isSharedReceipt && 'serviceWorker' in navigator) {
-      navigator.serviceWorker.getRegistrations().then(regs => {
-        regs.forEach(reg => reg.unregister());
-      });
-    } else if ('serviceWorker' in navigator) {
-      navigator.serviceWorker.getRegistrations().then(regs => {
-        regs.forEach(reg => reg.update());
-      });
-    }
-  </script>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
   <style>
     * { box-sizing: border-box; margin: 0; padding: 0; }
@@ -360,7 +346,7 @@
     @media print {
       body { background: white !important; }
       .screen { display: none !important; }
-      #screen-preview, #screen-shared { display: block !important; }
+      #screen-preview { display: block !important; }
       .nav, .tab-bar, .btn-primary, .btn-secondary, .share-section { display: none !important; }
       .content { padding: 0 !important; }
       .preview-wrapper { box-shadow: none !important; margin: 0 !important; padding: 0 !important; }
@@ -377,12 +363,6 @@
   <div class="loading-sub">Googleアカウントを確認中...</div>
   <div class="spinner"></div>
 </div>
-<script>
-  // 共有URLの場合はローディング画面を即座に隠す
-  if (window.__isSharedReceipt) {
-    document.getElementById('loading-screen').style.display = 'none';
-  }
-</script>
 
 <!-- サインイン -->
 <div id="signin-screen">
@@ -584,20 +564,6 @@
     </div>
   </div>
 
-  <!-- 共有領収書表示画面（ログイン不要） -->
-  <div id="screen-shared" class="screen">
-    <div class="nav">
-      <span class="nav-title">領収書</span>
-    </div>
-    <div class="content">
-      <div class="preview-wrapper">
-        <div class="receipt-preview" id="shared-receipt-content"></div>
-      </div>
-      <button class="btn btn-primary" onclick="printReceipt()">PDF出力</button>
-      <div style="text-align:center; margin-top:16px; font-size:12px; color:#888;">この領収書はQRコードから表示されています</div>
-    </div>
-  </div>
-
   <!-- 設定 -->
   <div id="screen-settings" class="screen">
     <div class="nav">
@@ -743,7 +709,6 @@
   }
 
   function initApp() {
-    if (handleSharedReceipt()) return;
     if (handleRedirectCallback()) return;
     const cached = localStorage.getItem('gtoken');
     if (cached) {
@@ -1182,14 +1147,14 @@
     }
     const json = JSON.stringify(shareData);
     const b64 = btoa(unescape(encodeURIComponent(json)));
-    const shareUrl = window.location.origin + window.location.pathname + '?r=' + encodeURIComponent(b64);
+    const shareUrl = window.location.origin + '/share.html?r=' + encodeURIComponent(b64);
     try {
       new QRCode(canvas, { text: shareUrl, width: 200, height: 200, correctLevel: QRCode.CorrectLevel.L });
     } catch(e) {
       // URLが長すぎる場合は短縮版で再試行
       const shortData = { n:r.no||'', d:r.date||'', a:r.addressee||'', m:r.amount||0, c:r.company||'' };
       const shortB64 = btoa(unescape(encodeURIComponent(JSON.stringify(shortData))));
-      const shortUrl = window.location.origin + window.location.pathname + '?r=' + encodeURIComponent(shortB64);
+      const shortUrl = window.location.origin + '/share.html?r=' + encodeURIComponent(shortB64);
       try {
         new QRCode(canvas, { text: shortUrl, width: 200, height: 200, correctLevel: QRCode.CorrectLevel.L });
       } catch(e2) { console.warn('QR error', e2); }
@@ -1199,72 +1164,6 @@
   window.closeQRModal = () => {
     document.getElementById('qr-modal').style.display = 'none';
   };
-
-  // 共有領収書の表示（URLパラメータから）
-  function handleSharedReceipt() {
-    console.log('[共有] URL:', window.location.href);
-    const params = new URLSearchParams(window.location.search);
-    const rParam = params.get('r');
-    console.log('[共有] rParam:', rParam ? '存在 (長さ:'+rParam.length+')' : 'なし');
-    if (!rParam) return false;
-    try {
-      const json = decodeURIComponent(escape(atob(rParam)));
-      const s = JSON.parse(json);
-      const r = {
-        no: s.n||'', date: s.d||'', addressee: s.a||'',
-        amount: s.m||0, tax: s.t||'', payment: s.p||'cash',
-        tadashi: s.td||'', company: s.c||'',
-        address: s.ad||'', tel: s.te||'', regno: s.rg||'',
-        items: (s.i||[]).map(it => ({name:it.n||'',qty:it.q||1,price:it.p||0})),
-      };
-      currentPreviewReceipt = r;
-      const itemsHtml = buildItemsTable(r.items);
-      const paymentLabel = PAYMENT_LABELS[r.payment] || '現金';
-      document.getElementById('shared-receipt-content').innerHTML = `
-        <h1>領　収　書</h1>
-        <div class="receipt-meta">No. ${esc(r.no||'-')}</div>
-        <div class="receipt-date-text">${fmtDate(r.date)}</div>
-        <div class="receipt-addressee">${esc(r.addressee||'　　　　　')}</div>
-        <div style="margin-bottom:16px"></div>
-        <div class="receipt-amount-row">
-          <span class="receipt-amount-label">金額</span>
-          <span class="receipt-amount-value">￥${parseInt(r.amount||0).toLocaleString('ja-JP')} ー</span>
-        </div>
-        <div class="receipt-tax-note">${taxNote(r.tax, r.amount)}</div>
-        <div class="receipt-payment">支払方法: ${esc(paymentLabel)}</div>
-        <div class="receipt-tadashi">但し、${esc(r.tadashi||'　　　　　')} として<br>上記正に領収いたしました。</div>
-        ${itemsHtml}
-        <div class="receipt-issuer">
-          <div class="receipt-issuer-name">${esc(r.company||'')}</div>
-          <div class="receipt-issuer-detail">
-            ${r.address ? esc(r.address)+'<br>' : ''}
-            ${r.tel     ? 'TEL: '+esc(r.tel)+'<br>' : ''}
-            ${r.regno   ? '登録番号: '+esc(r.regno) : ''}
-          </div>
-        </div>`;
-      // 共有画面のみ表示（他の画面はすべて非表示・削除）
-      document.getElementById('loading-screen').style.display = 'none';
-      document.getElementById('signin-screen').style.display = 'none';
-      document.getElementById('error-screen').style.display = 'none';
-      document.getElementById('app').style.display = 'block';
-      // タブバーを非表示
-      document.querySelector('.tabbar').style.display = 'none';
-      // 他の画面をDOMから削除（この領収書以外にアクセスできないようにする）
-      ['screen-list','screen-form','screen-preview','screen-settings'].forEach(id => {
-        const el = document.getElementById(id);
-        if (el) el.remove();
-      });
-      // QRモーダルも不要
-      const qrModal = document.getElementById('qr-modal');
-      if (qrModal) qrModal.remove();
-      showScreen('shared');
-      console.log('[共有] 領収書を表示しました');
-      return true;
-    } catch(e) {
-      console.error('[共有] 共有領収書の読み込みに失敗', e);
-      return false;
-    }
-  }
 
   function showPreview(r) {
     currentPreviewId = r.id;
@@ -1319,19 +1218,12 @@
     alert('設定を保存しました');
   };
 
-  // PWA（共有URLの場合はSW登録しない）
-  if ('serviceWorker' in navigator && !window.__isSharedReceipt) {
+  // PWA
+  if ('serviceWorker' in navigator) {
     navigator.serviceWorker.register('./sw.js').catch(()=>{});
   }
 </script>
-<!-- GIS スクリプト（共有URLの場合は不要なので読み込まない） -->
-<script>
-  if (!window.__isSharedReceipt) {
-    const s = document.createElement('script');
-    s.src = 'https://accounts.google.com/gsi/client';
-    s.onload = () => { if (typeof onGisLoad === 'function') onGisLoad(); };
-    document.body.appendChild(s);
-  }
-</script>
+<!-- GIS スクリプトはインラインスクリプトの後に置くことで onGisLoad の定義を保証 -->
+<script src="https://accounts.google.com/gsi/client" onload="onGisLoad()"></script>
 </body>
 </html>
