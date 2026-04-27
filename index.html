@@ -1162,14 +1162,14 @@
     }
     const json = JSON.stringify(shareData);
     const b64 = btoa(unescape(encodeURIComponent(json)));
-    const shareUrl = window.location.origin + window.location.pathname + '?r=' + b64;
+    const shareUrl = window.location.origin + window.location.pathname + '?r=' + encodeURIComponent(b64);
     try {
       new QRCode(canvas, { text: shareUrl, width: 200, height: 200, correctLevel: QRCode.CorrectLevel.L });
     } catch(e) {
       // URLが長すぎる場合は短縮版で再試行
       const shortData = { n:r.no||'', d:r.date||'', a:r.addressee||'', m:r.amount||0, c:r.company||'' };
       const shortB64 = btoa(unescape(encodeURIComponent(JSON.stringify(shortData))));
-      const shortUrl = window.location.origin + window.location.pathname + '?r=' + shortB64;
+      const shortUrl = window.location.origin + window.location.pathname + '?r=' + encodeURIComponent(shortB64);
       try {
         new QRCode(canvas, { text: shortUrl, width: 200, height: 200, correctLevel: QRCode.CorrectLevel.L });
       } catch(e2) { console.warn('QR error', e2); }
@@ -1182,8 +1182,10 @@
 
   // 共有領収書の表示（URLパラメータから）
   function handleSharedReceipt() {
+    console.log('[共有] URL:', window.location.href);
     const params = new URLSearchParams(window.location.search);
     const rParam = params.get('r');
+    console.log('[共有] rParam:', rParam ? '存在 (長さ:'+rParam.length+')' : 'なし');
     if (!rParam) return false;
     try {
       const json = decodeURIComponent(escape(atob(rParam)));
@@ -1228,9 +1230,10 @@
       // タブバーを非表示にする（共有画面では不要）
       document.querySelector('.tabbar').style.display = 'none';
       showScreen('shared');
+      console.log('[共有] 領収書を表示しました');
       return true;
     } catch(e) {
-      console.warn('共有領収書の読み込みに失敗', e);
+      console.error('[共有] 共有領収書の読み込みに失敗', e);
       return false;
     }
   }
