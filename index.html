@@ -1242,13 +1242,21 @@
             ${r.regno   ? '登録番号: '+esc(r.regno) : ''}
           </div>
         </div>`;
-      // ローディング画面・サインイン画面を隠してアプリを表示
+      // 共有画面のみ表示（他の画面はすべて非表示・削除）
       document.getElementById('loading-screen').style.display = 'none';
       document.getElementById('signin-screen').style.display = 'none';
       document.getElementById('error-screen').style.display = 'none';
       document.getElementById('app').style.display = 'block';
-      // タブバーを非表示にする（共有画面では不要）
+      // タブバーを非表示
       document.querySelector('.tabbar').style.display = 'none';
+      // 他の画面をDOMから削除（この領収書以外にアクセスできないようにする）
+      ['screen-list','screen-form','screen-preview','screen-settings'].forEach(id => {
+        const el = document.getElementById(id);
+        if (el) el.remove();
+      });
+      // QRモーダルも不要
+      const qrModal = document.getElementById('qr-modal');
+      if (qrModal) qrModal.remove();
       showScreen('shared');
       console.log('[共有] 領収書を表示しました');
       return true;
@@ -1316,7 +1324,14 @@
     navigator.serviceWorker.register('./sw.js').catch(()=>{});
   }
 </script>
-<!-- GIS スクリプトはインラインスクリプトの後に置くことで onGisLoad の定義を保証 -->
-<script src="https://accounts.google.com/gsi/client" onload="onGisLoad()"></script>
+<!-- GIS スクリプト（共有URLの場合は不要なので読み込まない） -->
+<script>
+  if (!window.__isSharedReceipt) {
+    const s = document.createElement('script');
+    s.src = 'https://accounts.google.com/gsi/client';
+    s.onload = () => { if (typeof onGisLoad === 'function') onGisLoad(); };
+    document.body.appendChild(s);
+  }
+</script>
 </body>
 </html>
