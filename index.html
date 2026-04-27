@@ -10,6 +10,20 @@
   <link rel="manifest" href="./manifest.json">
   <link rel="apple-touch-icon" href="./icon.svg">
   <title>領収書アプリ</title>
+  <script>
+    // 共有URLかどうかのフラグ（早期検出）
+    window.__isSharedReceipt = new URLSearchParams(window.location.search).has('r');
+    // 共有URLの場合: SWを解除してキャッシュ問題を防ぐ
+    if (window.__isSharedReceipt && 'serviceWorker' in navigator) {
+      navigator.serviceWorker.getRegistrations().then(regs => {
+        regs.forEach(reg => reg.unregister());
+      });
+    } else if ('serviceWorker' in navigator) {
+      navigator.serviceWorker.getRegistrations().then(regs => {
+        regs.forEach(reg => reg.update());
+      });
+    }
+  </script>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
   <style>
     * { box-sizing: border-box; margin: 0; padding: 0; }
@@ -363,6 +377,12 @@
   <div class="loading-sub">Googleアカウントを確認中...</div>
   <div class="spinner"></div>
 </div>
+<script>
+  // 共有URLの場合はローディング画面を即座に隠す
+  if (window.__isSharedReceipt) {
+    document.getElementById('loading-screen').style.display = 'none';
+  }
+</script>
 
 <!-- サインイン -->
 <div id="signin-screen">
@@ -1291,8 +1311,8 @@
     alert('設定を保存しました');
   };
 
-  // PWA
-  if ('serviceWorker' in navigator) {
+  // PWA（共有URLの場合はSW登録しない）
+  if ('serviceWorker' in navigator && !window.__isSharedReceipt) {
     navigator.serviceWorker.register('./sw.js').catch(()=>{});
   }
 </script>
