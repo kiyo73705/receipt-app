@@ -540,11 +540,7 @@
       </div>
       <button class="btn btn-primary" onclick="printReceipt()">PDF出力</button>
       <div class="share-section">
-        <div class="share-title">共有方法を選択</div>
         <div class="share-buttons">
-          <button class="share-btn" onclick="shareReceipt()">
-            <span class="share-icon">📤</span>メール / LINE / DM
-          </button>
           <button class="share-btn" onclick="showQRModal()">
             <span class="share-icon">📱</span>QRコードで共有
           </button>
@@ -1096,36 +1092,6 @@
     }
     window.print();
     setTimeout(() => { document.title = origTitle; }, 1000);
-  };
-
-  // 共有: メール/LINE/DM（Web Share API）
-  window.shareReceipt = async () => {
-    const r = currentPreviewReceipt;
-    if (!r) return;
-    const text = [
-      '【領収書】',
-      `No: ${r.no || '-'}`,
-      `日付: ${fmtDate(r.date)}`,
-      `宛名: ${r.addressee || '-'}`,
-      `金額: ¥${parseInt(r.amount||0).toLocaleString()}`,
-      r.tadashi ? `但し: ${r.tadashi}` : '',
-      `支払方法: ${PAYMENT_LABELS[r.payment]||'現金'}`,
-      r.company ? `発行者: ${r.company}` : '',
-    ].filter(Boolean).join('\n');
-
-    if (navigator.share) {
-      try {
-        await navigator.share({ title: `領収書 ${r.no||''}`, text });
-      } catch(e) { /* ユーザーがキャンセル */ }
-    } else {
-      // Web Share API非対応の場合はクリップボードにコピー
-      try {
-        await navigator.clipboard.writeText(text);
-        alert('領収書の内容をクリップボードにコピーしました。メールやLINEに貼り付けてください。');
-      } catch(e) {
-        prompt('以下をコピーして送信してください:', text);
-      }
-    }
   };
 
   // QRコードモーダル表示（領収書URLをQRコードにする）
