@@ -52,14 +52,13 @@
       border: 1px solid #ddd; font-weight: 600; text-align: center;
     }
     .preview-items-table td { padding: 5px 8px; border: 1px solid #ddd; }
-    .preview-items-table td:nth-child(2),
-    .preview-items-table td:nth-child(3),
-    .preview-items-table td:nth-child(4) { text-align: right; }
-    .receipt-payment {
-      font-size: 12px; color: #555; margin-bottom: 16px;
-      border: 1px solid #ddd; padding: 6px 10px; border-radius: 4px;
-      display: inline-block;
+    .preview-items-table .col-qty,
+    .preview-items-table .col-amount { text-align: right; }
+    .preview-items-total td {
+      background: #f5f5f5; font-weight: 600;
+      padding: 5px 8px; border: 1px solid #ddd;
     }
+    .receipt-statement { font-size: 13px; margin-bottom: 16px; line-height: 1.8; text-align: center; }
     .receipt-issuer { border-top: 1px solid #ccc; padding-top: 16px; }
     .receipt-issuer-name { font-size: 16px; font-weight: bold; margin-bottom: 4px; }
     .receipt-issuer-detail { font-size: 12px; color: #444; line-height: 1.7; }
@@ -119,25 +118,30 @@
   }
   function buildItemsTable(items) {
     if (!items || items.length === 0) return '';
-    const rows = items.map(it => {
-      const sub = (it.qty||1) * (it.price||0);
-      return `<tr>
-        <td>${esc(it.name)}</td>
-        <td>${it.qty||1}</td>
-        <td>¥${(it.price||0).toLocaleString()}</td>
-        <td>¥${sub.toLocaleString()}</td>
-      </tr>`;
-    }).join('');
+    const hasQty = items.some(it => (it.qty||1) > 1);
+    const total = items.reduce((sum, it) => sum + ((it.qty||1) * (it.price||0)), 0);
+    let rows, header, totalRow;
+    if (hasQty) {
+      header = '<tr><th>品目・内容</th><th>数量</th><th>金額</th></tr>';
+      rows = items.map(it => {
+        const amt = (it.qty||1) * (it.price||0);
+        return `<tr><td>${esc(it.name)}</td><td class="col-qty">${it.qty||1}</td><td class="col-amount">¥${amt.toLocaleString()}</td></tr>`;
+      }).join('');
+      totalRow = `<tr class="preview-items-total"><td>合計</td><td></td><td class="col-amount">¥${total.toLocaleString()}</td></tr>`;
+    } else {
+      header = '<tr><th>品目・内容</th><th>金額</th></tr>';
+      rows = items.map(it => {
+        const amt = (it.qty||1) * (it.price||0);
+        return `<tr><td>${esc(it.name)}</td><td class="col-amount">¥${amt.toLocaleString()}</td></tr>`;
+      }).join('');
+      totalRow = `<tr class="preview-items-total"><td>合計</td><td class="col-amount">¥${total.toLocaleString()}</td></tr>`;
+    }
     return `
       <table class="preview-items-table">
-        <thead><tr><th>品目</th><th>数量</th><th>単価</th><th>小計</th></tr></thead>
-        <tbody>${rows}</tbody>
+        <thead>${header}</thead>
+        <tbody>${rows}${totalRow}</tbody>
       </table>`;
   }
-  const PAYMENT_LABELS = {
-    cash: '現金', transfer: '振込',
-    partial_points: '一部ポイント', all_points: '全てポイント', other: 'その他'
-  };
 
   // ---- 領収書データ読み込み・表示 ----
   let receiptData = null;
@@ -151,14 +155,12 @@
       const s = JSON.parse(json);
       receiptData = {
         no: s.n||'', date: s.d||'', addressee: s.a||'',
-        amount: s.m||0, tax: s.t||'', payment: s.p||'cash',
-        tadashi: s.td||'', company: s.c||'',
+        amount: s.m||0, tax: s.t||'', company: s.c||'',
         address: s.ad||'', tel: s.te||'', regno: s.rg||'',
         items: (s.i||[]).map(it => ({name:it.n||'',qty:it.q||1,price:it.p||0})),
       };
       const r = receiptData;
       const itemsHtml = buildItemsTable(r.items);
-      const paymentLabel = PAYMENT_LABELS[r.payment] || '現金';
       document.getElementById('receipt-area').innerHTML = `
         <div class="preview-wrapper">
           <div class="receipt-preview">
@@ -172,9 +174,8 @@
               <span class="receipt-amount-value">￥${parseInt(r.amount||0).toLocaleString('ja-JP')} ー</span>
             </div>
             <div class="receipt-tax-note">${taxNote(r.tax, r.amount)}</div>
-            <div class="receipt-payment">支払方法: ${esc(paymentLabel)}</div>
-            <div class="receipt-tadashi">但し、${esc(r.tadashi||'　　　　　')} として<br>上記正に領収いたしました。</div>
             ${itemsHtml}
+            <div class="receipt-statement">上記の金額、正に領収いたしました。</div>
             <div class="receipt-issuer">
               <div class="receipt-issuer-name">${esc(r.company||'')}</div>
               <div class="receipt-issuer-detail">

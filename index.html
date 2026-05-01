@@ -178,20 +178,6 @@
     .form-row textarea { text-align: left; resize: none; min-height: 44px; }
     .form-row input::placeholder, .form-row textarea::placeholder { color: #c7c7cc; }
 
-    /* 支払い方法 */
-    .payment-options {
-      display: flex; flex-wrap: wrap; gap: 8px;
-      padding: 12px 16px;
-    }
-    .payment-opt {
-      border: 1.5px solid #c7c7cc; border-radius: 20px;
-      padding: 6px 14px; font-size: 14px; cursor: pointer;
-      background: #fff; color: #3c3c3e;
-      transition: all 0.15s;
-    }
-    .payment-opt.selected {
-      border-color: #007aff; background: #007aff; color: #fff;
-    }
 
     /* 明細テーブル */
     .items-section {
@@ -282,7 +268,7 @@
       border-bottom: 2px solid #1c1c1e; padding: 4px 12px; flex: 1;
     }
     .receipt-tax-note { font-size: 11px; color: #555; margin-bottom: 16px; }
-    .receipt-tadashi { font-size: 13px; margin-bottom: 16px; line-height: 1.8; }
+    .receipt-statement { font-size: 13px; margin-bottom: 16px; line-height: 1.8; text-align: center; }
 
     /* 明細テーブル（プレビュー） */
     .preview-items-table {
@@ -296,19 +282,11 @@
     .preview-items-table td {
       padding: 5px 8px; border: 1px solid #ddd;
     }
-    .preview-items-table td:nth-child(2),
-    .preview-items-table td:nth-child(3),
-    .preview-items-table td:nth-child(4) { text-align: right; }
-    .preview-items-subtotal {
-      font-size: 12px; text-align: right;
-      padding: 4px 0; color: #555;
-    }
-
-    /* 支払い方法（プレビュー） */
-    .receipt-payment {
-      font-size: 12px; color: #555; margin-bottom: 16px;
-      border: 1px solid #ddd; padding: 6px 10px; border-radius: 4px;
-      display: inline-block;
+    .preview-items-table .col-qty,
+    .preview-items-table .col-amount { text-align: right; }
+    .preview-items-total td {
+      background: #f5f5f5; font-weight: 600;
+      padding: 5px 8px; border: 1px solid #ddd;
     }
 
     .receipt-issuer { border-top: 1px solid #ccc; padding-top: 16px; }
@@ -481,24 +459,6 @@
               <option value="none">記載なし</option>
             </select>
           </div>
-          <div class="form-row">
-            <label class="form-label">但し書き</label>
-            <textarea id="f-tadashi" placeholder="例: ○○代として"></textarea>
-          </div>
-        </div>
-      </div>
-
-      <!-- 支払い方法 -->
-      <div class="form-section">
-        <div class="form-section-title">支払い方法</div>
-        <div class="form-group">
-          <div class="payment-options" id="payment-options">
-            <button class="payment-opt selected" data-val="cash" onclick="selectPayment(this)">現金</button>
-            <button class="payment-opt" data-val="transfer" onclick="selectPayment(this)">振込</button>
-            <button class="payment-opt" data-val="partial_points" onclick="selectPayment(this)">一部ポイント</button>
-            <button class="payment-opt" data-val="all_points" onclick="selectPayment(this)">全てポイント</button>
-            <button class="payment-opt" data-val="other" onclick="selectPayment(this)">その他</button>
-          </div>
         </div>
       </div>
 
@@ -635,11 +595,6 @@
 
   const SCOPES    = 'https://www.googleapis.com/auth/drive.file';
   const FILE_NAME = 'receipt-data.json';
-
-  const PAYMENT_LABELS = {
-    cash: '現金', transfer: '振込',
-    partial_points: '一部ポイント', all_points: '全てポイント', other: 'その他'
-  };
 
   let tokenClient;
   let accessToken = null;   // OAuth アクセストークン（gapiの代わりに直接管理）
@@ -898,7 +853,7 @@
         <div class="receipt-item" onclick="showPreviewById('${esc(r.id)}')">
           <div class="receipt-item-left">
             <div class="receipt-item-title">${esc(r.addressee || '(宛名なし)')} 御中</div>
-            <div class="receipt-item-sub">${fmtDate(r.date)}　No.${esc(r.no || '-')}　${PAYMENT_LABELS[r.payment]||'現金'}</div>
+            <div class="receipt-item-sub">${fmtDate(r.date)}　No.${esc(r.no || '-')}</div>
           </div>
           <div class="receipt-item-amount">${fmtAmt(r.amount)}</div>
         </div>
@@ -951,21 +906,6 @@
     renderItemRows();
   };
 
-  // ---- 支払い方法 ----
-  let selectedPayment = 'cash';
-  window.selectPayment = (btn) => {
-    document.querySelectorAll('.payment-opt').forEach(b => b.classList.remove('selected'));
-    btn.classList.add('selected');
-    selectedPayment = btn.dataset.val;
-  };
-
-  function setPaymentUI(val) {
-    selectedPayment = val || 'cash';
-    document.querySelectorAll('.payment-opt').forEach(b => {
-      b.classList.toggle('selected', b.dataset.val === selectedPayment);
-    });
-  }
-
   // ---- 新規作成 ----
   window.showCreate = () => {
     currentEditId = null;
@@ -976,7 +916,6 @@
     document.getElementById('f-addressee').value = '';
     document.getElementById('f-amount').value = '';
     document.getElementById('f-tax').value = 'included';
-    document.getElementById('f-tadashi').value = '';
     const s = data.settings || {};
     document.getElementById('f-company').value = s.company || '';
     document.getElementById('f-address').value = s.address || '';
@@ -984,7 +923,6 @@
     document.getElementById('f-regno').value = s.regno || '';
     itemRows = [];
     renderItemRows();
-    setPaymentUI('cash');
     showScreen('form');
   };
 
@@ -1000,14 +938,12 @@
     document.getElementById('f-addressee').value = r.addressee || '';
     document.getElementById('f-amount').value = r.amount || '';
     document.getElementById('f-tax').value = r.tax || 'included';
-    document.getElementById('f-tadashi').value = r.tadashi || '';
     document.getElementById('f-company').value = r.company || '';
     document.getElementById('f-address').value = r.address || '';
     document.getElementById('f-tel').value = r.tel || '';
     document.getElementById('f-regno').value = r.regno || '';
     itemRows = (r.items || []).map(it => ({...it}));
     renderItemRows();
-    setPaymentUI(r.payment || 'cash');
     showScreen('form');
   };
 
@@ -1026,13 +962,11 @@
       addressee: document.getElementById('f-addressee').value,
       amount,
       tax:       document.getElementById('f-tax').value,
-      tadashi:   document.getElementById('f-tadashi').value,
       company:   document.getElementById('f-company').value,
       address:   document.getElementById('f-address').value,
       tel:       document.getElementById('f-tel').value,
       regno:     document.getElementById('f-regno').value,
       items:     itemRows.filter(it => it.name || it.price > 0).map(it => ({...it})),
-      payment:   selectedPayment,
     };
     if (currentEditId) {
       data.receipts = (data.receipts||[]).map(x => x.id === currentEditId ? r : x);
@@ -1064,19 +998,29 @@
 
   function buildItemsTable(items) {
     if (!items || items.length === 0) return '';
-    const rows = items.map(it => {
-      const sub = (it.qty||1) * (it.price||0);
-      return `<tr>
-        <td>${esc(it.name)}</td>
-        <td>${it.qty||1}</td>
-        <td>¥${(it.price||0).toLocaleString()}</td>
-        <td>¥${sub.toLocaleString()}</td>
-      </tr>`;
-    }).join('');
+    // 数量が2以上の行があるかチェック
+    const hasQty = items.some(it => (it.qty||1) > 1);
+    const total = items.reduce((sum, it) => sum + ((it.qty||1) * (it.price||0)), 0);
+    let rows, header, totalRow;
+    if (hasQty) {
+      header = '<tr><th>品目・内容</th><th>数量</th><th>金額</th></tr>';
+      rows = items.map(it => {
+        const amt = (it.qty||1) * (it.price||0);
+        return `<tr><td>${esc(it.name)}</td><td class="col-qty">${it.qty||1}</td><td class="col-amount">¥${amt.toLocaleString()}</td></tr>`;
+      }).join('');
+      totalRow = `<tr class="preview-items-total"><td>合計</td><td></td><td class="col-amount">¥${total.toLocaleString()}</td></tr>`;
+    } else {
+      header = '<tr><th>品目・内容</th><th>金額</th></tr>';
+      rows = items.map(it => {
+        const amt = (it.qty||1) * (it.price||0);
+        return `<tr><td>${esc(it.name)}</td><td class="col-amount">¥${amt.toLocaleString()}</td></tr>`;
+      }).join('');
+      totalRow = `<tr class="preview-items-total"><td>合計</td><td class="col-amount">¥${total.toLocaleString()}</td></tr>`;
+    }
     return `
       <table class="preview-items-table">
-        <thead><tr><th>品目</th><th>数量</th><th>単価</th><th>小計</th></tr></thead>
-        <tbody>${rows}</tbody>
+        <thead>${header}</thead>
+        <tbody>${rows}${totalRow}</tbody>
       </table>`;
   }
 
@@ -1104,8 +1048,7 @@
     // 領収書データをコンパクトなJSONにしてBase64エンコード
     const shareData = {
       n: r.no||'', d: r.date||'', a: r.addressee||'',
-      m: r.amount||0, t: r.tax||'', p: r.payment||'cash',
-      td: r.tadashi||'', c: r.company||'',
+      m: r.amount||0, t: r.tax||'', c: r.company||'',
       ad: r.address||'', te: r.tel||'', rg: r.regno||'',
     };
     if (r.items && r.items.length > 0) {
@@ -1135,7 +1078,6 @@
     currentPreviewId = r.id;
     currentPreviewReceipt = r;
     const itemsHtml = buildItemsTable(r.items);
-    const paymentLabel = PAYMENT_LABELS[r.payment] || '現金';
 
     document.getElementById('receipt-preview-content').innerHTML = `
       <h1>領　収　書</h1>
@@ -1148,9 +1090,8 @@
         <span class="receipt-amount-value">￥${parseInt(r.amount||0).toLocaleString('ja-JP')} ー</span>
       </div>
       <div class="receipt-tax-note">${taxNote(r.tax, r.amount)}</div>
-      <div class="receipt-payment">支払方法: ${esc(paymentLabel)}</div>
-      <div class="receipt-tadashi">但し、${esc(r.tadashi||'　　　　　')} として<br>上記正に領収いたしました。</div>
       ${itemsHtml}
+      <div class="receipt-statement">上記の金額、正に領収いたしました。</div>
       <div class="receipt-issuer">
         <div class="receipt-issuer-name">${esc(r.company||'')}</div>
         <div class="receipt-issuer-detail">
