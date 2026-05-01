@@ -27,40 +27,39 @@
       border: 2px solid #1c1c1e; padding: 24px 20px;
       font-family: 'Hiragino Mincho ProN', 'Yu Mincho', Georgia, serif;
     }
-    .receipt-preview h1 { text-align: center; font-size: 22px; letter-spacing: 8px; margin-bottom: 16px; }
+    .receipt-preview h1 { text-align: center; font-size: 22px; letter-spacing: 8px; margin-bottom: 20px; }
     .receipt-meta { text-align: right; font-size: 12px; margin-bottom: 2px; }
-    .receipt-date-text { text-align: right; font-size: 13px; margin-bottom: 20px; }
+    .receipt-date-text { text-align: right; font-size: 13px; margin-bottom: 24px; }
     .receipt-addressee {
-      font-size: 20px; font-weight: bold;
+      font-size: 18px; font-weight: bold; letter-spacing: 2px;
       border-bottom: 2px solid #1c1c1e;
-      padding-bottom: 4px; margin-bottom: 20px; display: inline-block;
+      padding-bottom: 6px; margin-bottom: 24px; display: inline-block;
     }
-    .receipt-amount-row { display: flex; align-items: center; gap: 8px; margin-bottom: 6px; }
+    .receipt-amount-row { display: flex; align-items: baseline; gap: 8px; margin-bottom: 8px; }
     .receipt-amount-label { font-size: 14px; min-width: 36px; }
     .receipt-amount-value {
-      font-size: 24px; font-weight: bold;
+      font-size: 22px; font-weight: bold;
       border-bottom: 2px solid #1c1c1e; padding: 4px 12px; flex: 1;
     }
-    .receipt-tax-note { font-size: 11px; color: #555; margin-bottom: 16px; }
-    .receipt-tadashi { font-size: 13px; margin-bottom: 16px; line-height: 1.8; }
+    .receipt-tax-note { font-size: 11px; color: #555; margin-bottom: 20px; }
     .preview-items-table {
       width: 100%; border-collapse: collapse;
-      font-size: 12px; margin-bottom: 16px;
+      font-size: 13px; margin-bottom: 20px;
     }
     .preview-items-table th {
-      background: #f5f5f5; padding: 5px 8px;
-      border: 1px solid #ddd; font-weight: 600; text-align: center;
+      background: #f5f5f5; padding: 8px 12px;
+      border: 1px solid #ccc; font-weight: 600; text-align: center;
     }
-    .preview-items-table td { padding: 5px 8px; border: 1px solid #ddd; }
+    .preview-items-table td { padding: 8px 12px; border: 1px solid #ccc; }
     .preview-items-table .col-qty,
     .preview-items-table .col-amount { text-align: right; }
     .preview-items-total td {
       background: #f5f5f5; font-weight: 600;
-      padding: 5px 8px; border: 1px solid #ddd;
+      padding: 8px 12px; border: 1px solid #ccc;
     }
-    .receipt-statement { font-size: 13px; margin-bottom: 16px; line-height: 1.8; text-align: center; }
-    .receipt-issuer { border-top: 1px solid #ccc; padding-top: 16px; }
-    .receipt-issuer-name { font-size: 16px; font-weight: bold; margin-bottom: 4px; }
+    .receipt-statement { font-size: 13px; margin-bottom: 20px; line-height: 1.8; text-align: center; }
+    .receipt-issuer { border-top: 1px solid #999; padding-top: 20px; margin-top: 8px; }
+    .receipt-issuer-name { font-size: 15px; font-weight: bold; margin-bottom: 4px; }
     .receipt-issuer-detail { font-size: 12px; color: #444; line-height: 1.7; }
     .btn {
       display: block; width: 100%; padding: 14px; border: none;
@@ -118,20 +117,21 @@
   }
   function buildItemsTable(items) {
     if (!items || items.length === 0) return '';
-    const hasQty = items.some(it => (it.qty||1) > 1);
-    const total = items.reduce((sum, it) => sum + ((it.qty||1) * (it.price||0)), 0);
+    const getQty = (it) => it.qty > 1 ? it.qty : 1;
+    const hasQty = items.some(it => it.qty > 1);
+    const total = items.reduce((sum, it) => sum + getQty(it) * (it.price||0), 0);
     let rows, header, totalRow;
     if (hasQty) {
       header = '<tr><th>品目・内容</th><th>数量</th><th>金額</th></tr>';
       rows = items.map(it => {
-        const amt = (it.qty||1) * (it.price||0);
-        return `<tr><td>${esc(it.name)}</td><td class="col-qty">${it.qty||1}</td><td class="col-amount">¥${amt.toLocaleString()}</td></tr>`;
+        const amt = getQty(it) * (it.price||0);
+        return `<tr><td>${esc(it.name)}</td><td class="col-qty">${it.qty > 1 ? it.qty : ''}</td><td class="col-amount">¥${amt.toLocaleString()}</td></tr>`;
       }).join('');
       totalRow = `<tr class="preview-items-total"><td>合計</td><td></td><td class="col-amount">¥${total.toLocaleString()}</td></tr>`;
     } else {
       header = '<tr><th>品目・内容</th><th>金額</th></tr>';
       rows = items.map(it => {
-        const amt = (it.qty||1) * (it.price||0);
+        const amt = getQty(it) * (it.price||0);
         return `<tr><td>${esc(it.name)}</td><td class="col-amount">¥${amt.toLocaleString()}</td></tr>`;
       }).join('');
       totalRow = `<tr class="preview-items-total"><td>合計</td><td class="col-amount">¥${total.toLocaleString()}</td></tr>`;
