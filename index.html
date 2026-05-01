@@ -623,8 +623,15 @@
     return '';
   }
   function nextNo() {
+    const now = new Date();
+    const yyyy = String(now.getFullYear());
+    // 年が変わっていたらカウンターをリセット
+    if (data.counterYear !== yyyy) {
+      data.counter = 0;
+      data.counterYear = yyyy;
+    }
     data.counter = (data.counter || 0) + 1;
-    return (data.settings.prefix || '') + String(data.counter).padStart(3,'0');
+    return `${yyyy}-${String(data.counter).padStart(3,'0')}`;
   }
 
   // ---- 同期バー ----
@@ -755,6 +762,12 @@
     const r = await driveGet(`https://www.googleapis.com/drive/v3/files/${fileId}`, { alt: 'media' });
     try { data = await r.json(); }
     catch(e) { data = { version:1, settings:{}, counter:0, receipts:[] }; }
+    // カウンターを一度だけリセット（テストデータ整理用）
+    if (!data.counterResetDone) {
+      data.counter = 0;
+      delete data.counterYear;
+      data.counterResetDone = true;
+    }
   }
 
   async function writeFile() {
@@ -853,7 +866,7 @@
         <div class="receipt-item" onclick="showPreviewById('${esc(r.id)}')">
           <div class="receipt-item-left">
             <div class="receipt-item-title">${esc(r.addressee || '(宛名なし)')} 御中</div>
-            <div class="receipt-item-sub">${fmtDate(r.date)}　No.${esc(r.no || '-')}</div>
+            <div class="receipt-item-sub">${fmtDate(r.date)}　${esc(r.no || '-')}</div>
           </div>
           <div class="receipt-item-amount">${fmtAmt(r.amount)}</div>
         </div>
@@ -1081,7 +1094,7 @@
 
     document.getElementById('receipt-preview-content').innerHTML = `
       <h1>領　収　書</h1>
-      <div class="receipt-meta">No. ${esc(r.no||'-')}</div>
+      <div class="receipt-meta">${esc(r.no||'-')}</div>
       <div class="receipt-date-text">${fmtDate(r.date)}</div>
       <div class="receipt-addressee">${esc(r.addressee||'　　　　　')}</div>
       <div style="margin-bottom:16px"></div>

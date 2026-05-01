@@ -1,4 +1,4 @@
-const CACHE_NAME = 'receipt-app-v21';
+const CACHE_NAME = 'receipt-app-v25';
 const ASSETS = [
   './',
   './index.html',
